@@ -4,6 +4,9 @@
  */
 import type { AttackType, Line } from '../sim/battle/types';
 
+/** Per-line weights, used for anything that can target every battle line. */
+type LineWeights = Record<Line, number>;
+
 export interface BattleConfig {
   /**
    * Safety limit only. Battles run until one fleet is destroyed or has fully
@@ -44,15 +47,37 @@ export interface BattleConfig {
   };
   targeting: {
     /** Preference of each attack type for each enemy line (multiplies visibility). */
-    lineWeight: Record<AttackType, Record<Line, number>>;
+    lineWeight: Record<AttackType, LineWeights>;
     /** Weight multiplier for ships that are already retreating. */
     retreatingWeight: number;
   };
   screening: {
-    /** Screens needed per capital ship for full screening. */
+    /** Screens needed per capital ship (and carrier) for full screening. */
     screensPerCapital: number;
-    /** At full screening, chance a shot aimed at a capital is intercepted by a screen. */
+    /** At full screening, chance a shot aimed at a capital or carrier is intercepted by a screen. */
     protection: Record<AttackType, number>;
+    /** Capital ships needed per carrier to fully cover the carriers. */
+    capitalsPerCarrier: number;
+    /** At full cover, chance a shot aimed at a carrier is drawn off by a capital ship. */
+    carrierProtection: Record<AttackType, number>;
+  };
+  air: {
+    /** Carriers launch a strike when (hour - 1) is a multiple of this, i.e. hours 1, 4, 7... */
+    waveInterval: number;
+    /** Damage each strike aircraft contributes to a wave. */
+    attackPerPlane: number;
+    /** Bombs and aerial torpedoes: piercing against armour. */
+    piercing: number;
+    /** Preference of strike aircraft for each enemy line (multiplies visibility). Planes ignore screening. */
+    lineWeight: LineWeights;
+    /** Share of the rest of the target fleet's AA that also covers the target. */
+    fleetAaShare: number;
+    /** Effective AA at which wave damage is halved. */
+    aaHalfDamage: number;
+    /** Fraction of the wave shot down: base + perAa * effective AA, capped. */
+    lossBase: number;
+    lossPerAa: number;
+    lossMax: number;
   };
   escape: {
     base: number;
@@ -86,15 +111,28 @@ export const BATTLE_CONFIG: BattleConfig = {
   },
   targeting: {
     lineWeight: {
-      light: { screen: 2, capital: 1 },
-      heavy: { screen: 1, capital: 2 },
-      torpedo: { screen: 0.5, capital: 2 },
+      light: { screen: 2, capital: 1, carrier: 1 },
+      heavy: { screen: 1, capital: 2, carrier: 2 },
+      torpedo: { screen: 0.5, capital: 2, carrier: 2 },
     },
     retreatingWeight: 0.5,
   },
   screening: {
     screensPerCapital: 3,
     protection: { light: 0.6, heavy: 0.6, torpedo: 0.9 },
+    capitalsPerCarrier: 1,
+    carrierProtection: { light: 0.7, heavy: 0.7, torpedo: 0.7 },
+  },
+  air: {
+    waveInterval: 3,
+    attackPerPlane: 1.5,
+    piercing: 45,
+    lineWeight: { screen: 0.5, capital: 2, carrier: 3 },
+    fleetAaShare: 0.15,
+    aaHalfDamage: 60,
+    lossBase: 0.03,
+    lossPerAa: 0.002,
+    lossMax: 0.5,
   },
   escape: {
     base: 0.35,

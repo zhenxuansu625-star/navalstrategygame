@@ -21,6 +21,11 @@ export function formatLogEvent(state: Pick<BattleState, 'sides'>, e: LogEvent): 
     }
     case 'bounce':
       return `${e.attacker}'s ${WEAPON[e.attackType]} (piercing ${e.piercing}) could not pierce ${e.target}'s armour (${e.armour}); ${e.attackerClass} ${WEAPON[e.attackType]} do little against a ${e.targetClass}.`;
+    case 'air': {
+      const losses = e.shotDown > 0 ? ` AA shoots down ${e.shotDown} ${e.shotDown === 1 ? 'plane' : 'planes'}.` : '';
+      const armour = e.pierced ? '' : ' Bombs fail to penetrate the deck armour.';
+      return `${e.carrier}'s air group (${e.planes} planes) strikes ${e.target} for ${r(e.hpDamage)} damage and ${r(e.orgDamage)} organisation.${losses}${armour}`;
+    }
     case 'sunk':
       return `${e.ship} (${side(e.side)}) sinks! Finished off by ${e.by}.`;
     case 'retreat':

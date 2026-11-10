@@ -12,6 +12,8 @@ function cat(category: ModuleCategory, rows: Row[]): Module[] {
 
 const LIGHT_SHIPS: HullClass[] = ['destroyer', 'lightCruiser'];
 const CRUISERS: HullClass[] = ['heavyCruiser', 'battlecruiser'];
+/** Cruiser machinery also drives carriers. */
+const CRUISER_ENGINES: HullClass[] = [...CRUISERS, 'carrier'];
 const BATTLESHIPS: HullClass[] = ['battleship', 'superHeavy'];
 
 export const MODULES: Module[] = [
@@ -25,9 +27,9 @@ export const MODULES: Module[] = [
     ['eng_light1', 'Light ship engine I', 1890, { speed: 2 }, 100, 0, 0, LIGHT_SHIPS],
     ['eng_light2', 'Light ship engine II', 1910, { speed: 4 }, 180, 0, 0, LIGHT_SHIPS],
     ['eng_light3', 'Light ship engine III', 1930, { speed: 6 }, 260, 0, 1, LIGHT_SHIPS],
-    ['eng_cruiser1', 'Cruiser engine I', 1890, { speed: 3 }, 300, 1, 0, CRUISERS],
-    ['eng_cruiser2', 'Cruiser engine II', 1910, { speed: 5 }, 450, 1, 0, CRUISERS],
-    ['eng_cruiser3', 'Cruiser engine III', 1930, { speed: 7 }, 600, 1, 1, CRUISERS],
+    ['eng_cruiser1', 'Cruiser engine I', 1890, { speed: 3 }, 300, 1, 0, CRUISER_ENGINES],
+    ['eng_cruiser2', 'Cruiser engine II', 1910, { speed: 5 }, 450, 1, 0, CRUISER_ENGINES],
+    ['eng_cruiser3', 'Cruiser engine III', 1930, { speed: 7 }, 600, 1, 1, CRUISER_ENGINES],
     ['eng_bb1', 'Battleship engine I', 1890, { speed: 3 }, 500, 2, 0, BATTLESHIPS],
     ['eng_bb2', 'Battleship engine II', 1910, { speed: 5 }, 750, 2, 0, BATTLESHIPS],
     ['eng_bb3', 'Battleship engine III', 1930, { speed: 8 }, 1000, 2, 2, BATTLESHIPS],
@@ -43,6 +45,9 @@ export const MODULES: Module[] = [
     ['arm_bb2', 'Battleship belt and deck II (Krupp)', 1906, { armour: 20, hp: 50, speed: -2 }, 1300, 6, 0, ['battlecruiser', ...BATTLESHIPS]],
     ['arm_bb3', 'Battleship belt and deck III', 1916, { armour: 24, hp: 60, speed: -2 }, 1700, 7, 1, ['battlecruiser', ...BATTLESHIPS]],
     ['arm_bb4', 'Battleship belt and deck IV (all-or-nothing)', 1936, { armour: 30, hp: 70, speed: -2 }, 2200, 8, 2, BATTLESHIPS],
+    ['arm_cv1', 'Carrier deck armour I', 1922, { armour: 6, hp: 20, speed: -1 }, 500, 3, 0, ['carrier']],
+    ['arm_cv2', 'Carrier deck armour II', 1936, { armour: 10, hp: 30, speed: -1 }, 700, 4, 0, ['carrier']],
+    ['arm_cv3', 'Armoured flight deck', 1940, { armour: 16, hp: 40, speed: -2 }, 1000, 6, 1, ['carrier']],
   ]),
   ...cat('lightBattery', [
     ['lb1', 'Light battery I', 1890, { lightAttack: 3, lightPiercing: 4 }, 60, 1, 0],
@@ -95,6 +100,11 @@ export const MODULES: Module[] = [
     ['radar1', 'Radar I', 1938, { surfaceDetection: 6 }, 250, 0, 1],
     ['radar2', 'Radar II', 1942, { surfaceDetection: 12 }, 400, 0, 2],
   ]),
+  ...cat('hangar', [
+    ['hangar1', 'Hangar I', 1922, { airWing: 12, visibility: 1 }, 600, 2, 0, ['carrier']],
+    ['hangar2', 'Hangar II', 1932, { airWing: 16, visibility: 1 }, 800, 2, 0, ['carrier']],
+    ['hangar3', 'Hangar III', 1940, { airWing: 20, visibility: 1 }, 1000, 2, 1, ['carrier']],
+  ]),
   ...cat('extraArmour', [
     ['xarm', 'Extra armour plating', 1890, { armour: 2, hp: 10, speed: -1 }, 200, 2, 0],
   ]),
@@ -115,4 +125,5 @@ export const MODULE_CATEGORY_NAMES: Record<ModuleCategory, string> = {
   asw: 'Anti-submarine',
   sensor: 'Sensors',
   extraArmour: 'Extra armour',
+  hangar: 'Hangar',
 };

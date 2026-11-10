@@ -29,6 +29,19 @@ export const PRESET_DESIGNS: Design[] = [
     fireControl: 'fc_basic', engine: 'eng_bb1', armour: 'arm_bb1',
     mainFront: 'hb1', mainMid: 'mb1', mainRear: 'hb1', secondary1: 'sec1', secondary2: 'sec1', custom1: 'torp1',
   }),
+  // WW1 dreadnought era
+  d('preset_bb_1906', 'Dreadnought 1906', 'All-big-gun battleship', 'bb2', {
+    fireControl: 'fc_rangefinder', engine: 'eng_bb1', armour: 'arm_bb2',
+    mainFront: 'hb2', mainMid: 'hb2', mainRear: 'hb2', secondary1: 'sec1', secondary2: 'sec1', custom1: null, custom2: null,
+  }),
+  d('preset_bb_1914', 'Super-dreadnought 1914', 'Battle line', 'bb2', {
+    fireControl: 'fc_rangefinder', engine: 'eng_bb2', armour: 'arm_bb2',
+    mainFront: 'hb3', mainMid: 'hb3', mainRear: 'hb3', secondary1: 'sec2', secondary2: 'sec2', custom1: 'xarm', custom2: null,
+  }),
+  d('preset_bc_1908', 'Battlecruiser 1908', 'Fast capital ship', 'bc1', {
+    fireControl: 'fc_rangefinder', engine: 'eng_cruiser1', armour: 'arm_ca1',
+    mainFront: 'hb2', mainMid: 'hb2', mainRear: 'hb2', secondary1: 'sec1', custom1: null,
+  }),
   d('preset_dd_1936', 'Destroyer 1936', 'Fleet destroyer', 'dd4', {
     fireControl: 'fc_director', engine: 'eng_light3', mainFront: 'lb4', mainRear: 'torp4', custom1: 'torp4', custom2: 'dc2',
   }),
@@ -46,6 +59,17 @@ export const PRESET_DESIGNS: Design[] = [
     mainFront: 'hb4', mainMid: 'hb4', mainRear: 'hb4', secondary1: 'dp2', secondary2: 'dp2', secondary3: 'dp2',
     custom1: 'aa2', custom2: 'aa2', custom3: 'radar1',
   }),
+  // WW2 carriers
+  d('preset_cv_1940', 'Light carrier 1940', 'Escort carrier', 'cv2', {
+    fireControl: 'fc_director', engine: 'eng_cruiser3', armour: 'arm_cv1',
+    hangar1: 'hangar2', hangar2: 'hangar2', hangar3: null,
+    secondary1: 'dp1', secondary2: 'dp1', custom1: 'aa2', custom2: null, custom3: null,
+  }),
+  d('preset_cv_1942', 'Fleet carrier 1942', 'Fleet carrier', 'cv3', {
+    fireControl: 'fc_radar', engine: 'eng_cruiser3', armour: 'arm_cv2',
+    hangar1: 'hangar3', hangar2: 'hangar3', hangar3: 'hangar3', hangar4: 'hangar3',
+    secondary1: 'dp2', secondary2: 'dp2', secondary3: 'dp2', custom1: 'aa3', custom2: 'aa3', custom3: 'radar1',
+  }),
   d('preset_sh_1940', 'Super-heavy battleship 1940', 'Super-battleship', 'sh1', {
     fireControl: 'fc_radar', engine: 'eng_bb3', armour: 'arm_bb4',
     mainFront: 'shb1', mainMid: 'shb1', mainRear: 'shb1', secondary1: 'dp2', secondary2: 'dp2', secondary3: 'dp2',
@@ -55,5 +79,6 @@ export const PRESET_DESIGNS: Design[] = [
 
 export const ROLE_SUGGESTIONS = [
   'Torpedo destroyer', 'Fleet destroyer', 'Convoy escort', 'Scout cruiser', 'Fleet cruiser',
-  'Armoured cruiser', 'Heavy cruiser', 'Fast capital ship', 'Battle line', 'Fast battleship', 'Super-battleship',
+  'Armoured cruiser', 'Heavy cruiser', 'Fast capital ship', 'Battle line', 'All-big-gun battleship', 'Fast battleship',
+  'Super-battleship', 'Escort carrier', 'Fleet carrier',
 ];

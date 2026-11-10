@@ -3,7 +3,8 @@ import type { AggressivenessId } from '../../data/battle';
 export type AttackType = 'light' | 'heavy' | 'torpedo';
 export const ATTACK_TYPES: readonly AttackType[] = ['light', 'heavy', 'torpedo'];
 
-export type Line = 'screen' | 'capital';
+export type Line = 'screen' | 'capital' | 'carrier';
+export const LINES: readonly Line[] = ['capital', 'screen', 'carrier'];
 
 /** Combat stats of one ship. Derived from a design (slice 2) or hard-coded presets. */
 export interface ShipStats {
@@ -24,6 +25,10 @@ export interface ShipStats {
   speed: number;
   /** Bigger ships are easier to see and hit. */
   visibility: number;
+  /** Anti-air: reduces air-strike damage against this ship and its fleet, and shoots planes down. */
+  aa: number;
+  /** Strike aircraft carried (carriers only). */
+  airWing: number;
 }
 
 export type ShipStatus = 'active' | 'retreating' | 'escaped' | 'sunk';
@@ -40,6 +45,8 @@ export interface ShipState {
   stats: ShipStats;
   hp: number;
   org: number;
+  /** Strike aircraft still available (carriers). */
+  planes: number;
   status: ShipStatus;
   retreatReason?: 'hp' | 'org';
   /** Hour the ship sank or escaped. */
@@ -79,6 +86,18 @@ export type LogEvent =
       target: string;
       targetClass: string;
       armour: number;
+    }
+  | {
+      hour: number;
+      type: 'air';
+      side: SideIndex;
+      carrier: string;
+      planes: number;
+      target: string;
+      hpDamage: number;
+      orgDamage: number;
+      pierced: boolean;
+      shotDown: number;
     }
   | { hour: number; type: 'sunk'; side: SideIndex; ship: string; by: string }
   | { hour: number; type: 'retreat'; side: SideIndex; ship: string; reason: 'hp' | 'org'; hpPct: number; orgPct: number }
