@@ -35,16 +35,23 @@
 }
 
 * { box-sizing: border-box; }
-body {
-  margin: 0;
-  min-height: 100vh;
+body { margin: 0; min-height: 100vh; background: var(--bg); }
+/*
+ * The backdrop lives on its own fixed layer so the browser can composite it
+ * once, instead of repainting a fixed background on every scroll.
+ */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
   background:
     radial-gradient(ellipse at 50% -10%, rgba(120, 110, 80, 0.18), transparent 60%),
     radial-gradient(ellipse at 50% 120%, rgba(0, 0, 0, 0.7), transparent 60%),
     repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 48px),
     repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 48px),
     linear-gradient(180deg, #171b18, #0e100f);
-  background-attachment: fixed;
 }
 h1, h2, h3 { margin: 0; font-family: var(--font-head); font-weight: 500; }
 .muted { color: var(--muted); }
