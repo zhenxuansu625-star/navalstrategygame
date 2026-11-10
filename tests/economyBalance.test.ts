@@ -99,11 +99,10 @@ describe('nation traits', () => {
     expect(mods('uk').dockyardOutput.battleship).toBeGreaterThan(0);
     expect(mods('germany').constructionSpeed.civilianFactory).toBeGreaterThan(0);
     expect(mods('russia').dockyardOutput.all).toBeLessThan(0);
-    // Germany's U-boat bonus is defined but waits for submarines to exist.
-    const uboat = NATIONS.find((n) => n.id === 'germany')!.traits.find((t) => t.id === 'uboat_arm')!;
-    expect(uboat.modifiers.dockyardOutput?.submarine).toBeGreaterThan(0);
-    expect(uboat.inactive).toBeTruthy();
-    expect(mods('germany').dockyardOutput.submarine).toBeUndefined();
+    // Germany's U-boat arm: submarines build faster, and the AI builds plenty of them.
+    expect(mods('germany').dockyardOutput.submarine).toBeCloseTo(0.3);
+    const mix = NATIONS.find((n) => n.id === 'germany')!.ai.fleetMix;
+    expect(mix.submarine).toBeGreaterThan(Math.max(...NATIONS.filter((n) => n.id !== 'germany').map((n) => n.ai.fleetMix.submarine ?? 0)));
   });
 
   it('American carrier lines out-produce the same line without the trait by 25%', () => {

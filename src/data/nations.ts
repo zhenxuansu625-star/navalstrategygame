@@ -27,7 +27,7 @@ export const NATIONS: NationDef[] = [
         modifiers: { consumerGoods: 0.04 },
       },
     ],
-    ai: { transitionMonth: 12, fleetMix: { battleship: 4, battlecruiser: 1, carrier: 1, heavyCruiser: 1, lightCruiser: 2, destroyer: 3 } },
+    ai: { transitionMonth: 12, fleetMix: { battleship: 4, battlecruiser: 1, carrier: 1, heavyCruiser: 1, lightCruiser: 2, destroyer: 3, submarine: 0.5 } },
     shipNames: ['Dreadnought', 'Warspite', 'Valiant', 'Revenge', 'Lion', 'Tiger', 'Ajax', 'Orion', 'Hood', 'Renown', 'Nelson', 'Rodney', 'Ark Royal', 'Illustrious', 'Vanguard', 'Monarch', 'Thunderer', 'Conqueror', 'Centurion', 'Benbow'],
   },
   {
@@ -39,7 +39,7 @@ export const NATIONS: NationDef[] = [
     dockyards: 10,
     buildingSlots: 86,
     resources: { steel: 140, chromium: 4 },
-    startingFleet: { battleship: 4, battlecruiser: 1, heavyCruiser: 1, lightCruiser: 4, destroyer: 8 },
+    startingFleet: { battleship: 4, battlecruiser: 1, heavyCruiser: 1, lightCruiser: 4, destroyer: 8, submarine: 2 },
     traits: [
       {
         id: 'industrial_heartland', name: 'Industrial heartland', kind: 'strength',
@@ -55,10 +55,9 @@ export const NATIONS: NationDef[] = [
         id: 'uboat_arm', name: 'U-boat arm', kind: 'strength',
         description: 'Submarines build 30% faster.',
         modifiers: { dockyardOutput: { submarine: 0.3 } },
-        inactive: 'Takes effect when submarines are added (roadmap slice 9).',
       },
     ],
-    ai: { transitionMonth: 30, fleetMix: { battleship: 3, battlecruiser: 2, carrier: 0.5, heavyCruiser: 1, lightCruiser: 2, destroyer: 3 } },
+    ai: { transitionMonth: 30, fleetMix: { battleship: 3, battlecruiser: 2, carrier: 0.5, heavyCruiser: 1, lightCruiser: 2, destroyer: 3, submarine: 2.5 } },
     shipNames: ['Konig', 'Kaiser', 'Bayern', 'Baden', 'Seydlitz', 'Derfflinger', 'Moltke', 'Von der Tann', 'Lutzow', 'Hindenburg', 'Bismarck', 'Tirpitz', 'Scharnhorst', 'Gneisenau', 'Emden', 'Dresden', 'Nurnberg', 'Leipzig', 'Koln', 'Karlsruhe'],
   },
   {
@@ -88,7 +87,7 @@ export const NATIONS: NationDef[] = [
         modifiers: { consumerGoods: 0.08 },
       },
     ],
-    ai: { transitionMonth: 48, fleetMix: { battleship: 3, carrier: 3, heavyCruiser: 1, lightCruiser: 2, destroyer: 3 } },
+    ai: { transitionMonth: 48, fleetMix: { battleship: 3, carrier: 3, heavyCruiser: 1, lightCruiser: 2, destroyer: 3, submarine: 1 } },
     shipNames: ['Texas', 'Nevada', 'Arizona', 'Pennsylvania', 'Lexington', 'Saratoga', 'Enterprise', 'Yorktown', 'Hornet', 'Iowa', 'Missouri', 'Washington', 'Essex', 'Atlanta', 'Portland', 'Houston', 'Fletcher', 'Benson', 'Sims', 'Porter'],
   },
   {
@@ -113,7 +112,7 @@ export const NATIONS: NationDef[] = [
         modifiers: { tradeYield: 0.2 },
       },
     ],
-    ai: { transitionMonth: 18, fleetMix: { battleship: 2, heavyCruiser: 2, carrier: 0.5, lightCruiser: 3, destroyer: 4 } },
+    ai: { transitionMonth: 18, fleetMix: { battleship: 2, heavyCruiser: 2, carrier: 0.5, lightCruiser: 3, destroyer: 4, submarine: 1 } },
     shipNames: ['Bretagne', 'Provence', 'Lorraine', 'Courbet', 'Dunkerque', 'Strasbourg', 'Richelieu', 'Jean Bart', 'Algerie', 'Colbert', 'Foch', 'Duquesne', 'Gloire', 'Marseillaise', 'Bearn', 'Mogador', 'Volta', 'Le Fantasque', 'Le Terrible', 'Jaguar'],
   },
   {
@@ -138,7 +137,7 @@ export const NATIONS: NationDef[] = [
         modifiers: { dockyardOutput: { carrier: 0.12 } },
       },
     ],
-    ai: { transitionMonth: 6, fleetMix: { battleship: 2, battlecruiser: 1, carrier: 2, heavyCruiser: 2, lightCruiser: 1, destroyer: 4 } },
+    ai: { transitionMonth: 6, fleetMix: { battleship: 2, battlecruiser: 1, carrier: 2, heavyCruiser: 2, lightCruiser: 1, destroyer: 4, submarine: 1 } },
     shipNames: ['Kongo', 'Hiei', 'Fuso', 'Yamashiro', 'Nagato', 'Mutsu', 'Akagi', 'Kaga', 'Soryu', 'Hiryu', 'Yamato', 'Musashi', 'Takao', 'Atago', 'Mogami', 'Tone', 'Fubuki', 'Kagero', 'Yukikaze', 'Shimakaze'],
   },
   {
@@ -163,7 +162,7 @@ export const NATIONS: NationDef[] = [
         modifiers: { constructionSpeed: { civilianFactory: -0.1 } },
       },
     ],
-    ai: { transitionMonth: 12, fleetMix: { battleship: 2, heavyCruiser: 3, lightCruiser: 3, destroyer: 3 } },
+    ai: { transitionMonth: 12, fleetMix: { battleship: 2, heavyCruiser: 3, lightCruiser: 3, destroyer: 3, submarine: 1.5 } },
     shipNames: ['Cavour', 'Cesare', 'Doria', 'Duilio', 'Littorio', 'Vittorio Veneto', 'Roma', 'Zara', 'Pola', 'Fiume', 'Gorizia', 'Trento', 'Trieste', 'Bolzano', 'Montecuccoli', 'Aosta', 'Garibaldi', 'Maestrale', 'Oriani', 'Soldati'],
   },
   {
@@ -188,7 +187,7 @@ export const NATIONS: NationDef[] = [
         modifiers: { dockyardOutput: { all: -0.08 } },
       },
     ],
-    ai: { transitionMonth: 36, fleetMix: { battleship: 3, heavyCruiser: 1, lightCruiser: 2, destroyer: 4 } },
+    ai: { transitionMonth: 36, fleetMix: { battleship: 3, heavyCruiser: 1, lightCruiser: 2, destroyer: 4, submarine: 1.5 } },
     shipNames: ['Gangut', 'Petropavlovsk', 'Sevastopol', 'Poltava', 'Imperatritsa Mariya', 'Borodino', 'Izmail', 'Rurik', 'Aurora', 'Bayan', 'Kirov', 'Maxim Gorky', 'Krasny Kavkaz', 'Novik', 'Gnevny', 'Storozhevoy', 'Leningrad', 'Tashkent', 'Varyag', 'Askold'],
   },
   {
@@ -218,7 +217,7 @@ export const NATIONS: NationDef[] = [
         modifiers: { consumerGoods: 0.04 },
       },
     ],
-    ai: { transitionMonth: 12, fleetMix: { battleship: 3, heavyCruiser: 1, lightCruiser: 2, destroyer: 3 } },
+    ai: { transitionMonth: 12, fleetMix: { battleship: 3, heavyCruiser: 1, lightCruiser: 2, destroyer: 3, submarine: 1 } },
     shipNames: ['Viribus Unitis', 'Tegetthoff', 'Prinz Eugen', 'Szent Istvan', 'Radetzky', 'Zrinyi', 'Erzherzog Karl', 'Sankt Georg', 'Kaiser Karl VI', 'Helgoland', 'Saida', 'Novara', 'Admiral Spaun', 'Tatra', 'Balaton', 'Csepel', 'Lika', 'Triglav', 'Orjen', 'Huszar'],
   },
 ];

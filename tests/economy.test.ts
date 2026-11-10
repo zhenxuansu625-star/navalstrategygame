@@ -107,7 +107,7 @@ describe('civilian factories', () => {
     s = ok(ctx, s, { type: 'queueBuilding', building: 'dockyard' }); // 2000 points: two months
     s = month(ctx, s);
     expect(s.nations.a!.dockyards).toBe(10);
-    expect(s.nations.a!.construction[0]!.progress).toBe(1000);
+    expect(s.nations.a!.construction[0]!.progress).toBeCloseTo(1000);
     s = month(ctx, s);
     expect(s.nations.a!.dockyards).toBe(11);
   });
@@ -307,9 +307,9 @@ describe('monthly step', () => {
   it('advances the date and rolls over the year', () => {
     const ctx = world();
     let s = newGame(ctx, 1914);
-    expect(s.date).toEqual({ year: 1914, month: 1 });
+    expect(s.date).toEqual({ year: 1914, month: 1, day: 1 });
     s = month(ctx, s, 12);
-    expect(s.date).toEqual({ year: 1915, month: 1 });
+    expect(s.date).toEqual({ year: 1915, month: 1, day: 1 });
     expect(s.turn).toBe(12);
   });
 
@@ -398,7 +398,7 @@ describe('nation traits', () => {
     expect(r.supply.steel).toBe(130); // 2 factories * 10 * 1.5
     expect(r.lines[0]!.output).toBeCloseTo(4 * 100 * 0.5 * 1.25);
     s = month(ctx, s);
-    expect(s.nations.a!.construction[0]!.progress).toBe(1500); // 10 factories * 100 * 1.5 towards a 2000-point dockyard
+    expect(s.nations.a!.construction[0]!.progress).toBeCloseTo(1500); // 10 factories * 100 * 1.5 towards a 2000-point dockyard
     expect(s.nations.a!.lines[0]!.efficiency).toBeCloseTo(0.7); // gain doubled
   });
 

@@ -9,6 +9,8 @@ export interface GameDate {
   year: number;
   /** 1 to 12. */
   month: number;
+  /** 1 to the length of the month. Older saves without a day count as the 1st. */
+  day?: number;
 }
 
 /** Ship stats a nation trait can scale. */
@@ -22,8 +24,8 @@ export interface Modifiers {
   constructionSpeed?: Partial<Record<BuildingType, number>>;
   /** Added to the share of civilian factories taken by consumer goods. */
   consumerGoods?: number;
-  /** Dockyard output by hull class; "all" applies to every line. "submarine" waits for slice 9. */
-  dockyardOutput?: Partial<Record<HullClass | 'all' | 'submarine', number>>;
+  /** Dockyard output by hull class; "all" applies to every line. */
+  dockyardOutput?: Partial<Record<HullClass | 'all', number>>;
   /** How fast production lines gain efficiency. */
   lineEfficiencyGain?: number;
   /** Resources gained per civilian factory on trade. */
@@ -95,6 +97,11 @@ export interface ShipRecord {
   name: string;
   design: Design;
   launched: GameDate;
+  /** Current HP and organisation; left out while at full strength. */
+  hp?: number;
+  org?: number;
+  /** Ordered into dock for repair: sits out battles until repaired. */
+  repairing?: boolean;
 }
 
 export interface NationState {
@@ -113,6 +120,9 @@ export interface NationState {
   /** Total production cost of every ship launched during the campaign. */
   producedValue: number;
   aggressiveness: AggressivenessId;
+  /** Name for this nation in the chosen era, e.g. "Soviet Union" from 1922. */
+  name?: string;
+  adjective?: string;
   /** Standing order: keep the construction queue topped up with this building (and infrastructure when slots run out). */
   autoBuild?: 'civilianFactory' | 'dockyard' | null;
 }
@@ -120,7 +130,7 @@ export interface NationState {
 export interface GameEvent {
   date: GameDate;
   nationId: string;
-  kind: 'building' | 'launch' | 'order';
+  kind: 'building' | 'launch' | 'order' | 'repair' | 'battle';
   text: string;
 }
 
@@ -147,7 +157,9 @@ export type Command =
   | { type: 'setLineDesign'; lineId: string; design: Design }
   | { type: 'setTrade'; resource: ResourceType; factories: number }
   | { type: 'setAggressiveness'; aggressiveness: AggressivenessId }
-  | { type: 'setAutoBuild'; building: 'civilianFactory' | 'dockyard' | null };
+  | { type: 'setAutoBuild'; building: 'civilianFactory' | 'dockyard' | null }
+  /** Send ships to (or recall them from) repair. "damaged" means every ship below full HP. */
+  | { type: 'setRepair'; ships: string[] | 'damaged' | 'all'; repairing: boolean };
 
 /** Commands per nation for one month. */
 export type Orders = Record<string, Command[]>;
