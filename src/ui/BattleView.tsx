@@ -5,15 +5,18 @@ import {
   formatLogEvent,
   isPresent,
   logByHour,
+  carrierCoverRatio,
   screeningRatio,
   step,
   type BattleSetup,
   type BattleState,
+  type Line,
   type LogEvent,
   type ShipState,
   type SideIndex,
 } from '../sim/battle';
 import { createRng, rngFromState } from '../sim/rng';
+import { ModuleIcon, type StatIconKind } from './art/ModuleIcon';
 import { ShipSilhouette, silhouetteFor } from './art/ShipSilhouette';
 import { groupShips, type ShipGroup } from './battleGroups';
 import { Bar, Frame } from './components';
@@ -107,6 +110,7 @@ export function BattleView({ setup }: { setup: BattleSetup }) {
           <SideBanner battle={battle} side={1} />
         </div>
         <TugBars battle={battle} />
+        <FirepowerPanel battle={battle} />
         {battle.result && (
           <div className="result-reason">
             After {battle.result.hours} hours. {battle.result.reason}
@@ -169,6 +173,69 @@ function SideBanner({ battle, side }: { battle: BattleState; side: SideIndex }) 
   );
 }
 
+interface Firepower {
+  light: number;
+  heavy: number;
+  torpedo: number;
+  planes: number;
+  aa: number;
+}
+
+/** Combined attack of the ships still fighting on one side. */
+function firepower(battle: BattleState, side: SideIndex): Firepower {
+  const f: Firepower = { light: 0, heavy: 0, torpedo: 0, planes: 0, aa: 0 };
+  for (const s of battle.ships) {
+    if (s.side !== side) continue;
+    if (isPresent(s)) f.aa += s.stats.aa;
+    if (s.status !== 'active') continue;
+    f.light += s.stats.lightAttack;
+    f.heavy += s.stats.heavyAttack;
+    f.torpedo += s.stats.torpedoAttack;
+    f.planes += s.planes;
+  }
+  return f;
+}
+
+const FIREPOWER_ROWS: { key: keyof Firepower; label: string; icon: StatIconKind; hint: string }[] = [
+  { key: 'light', label: 'Light guns', icon: 'lightBattery', hint: 'Light attack of ships still fighting: good against screens' },
+  { key: 'heavy', label: 'Heavy guns', icon: 'heavyBattery', hint: 'Heavy attack of ships still fighting: good against capital ships' },
+  { key: 'torpedo', label: 'Torpedoes', icon: 'torpedo', hint: 'Torpedo attack of ships still fighting' },
+  { key: 'planes', label: 'Strike aircraft', icon: 'hangar', hint: 'Planes left on carriers that are still fighting; they strike every few hours' },
+  { key: 'aa', label: 'Anti-air', icon: 'aa', hint: 'AA of ships still in the battle: cuts air-strike damage and shoots planes down' },
+];
+
+/** HOI4-style comparison of the two fleets' remaining firepower. */
+function FirepowerPanel({ battle }: { battle: BattleState }) {
+  const a = firepower(battle, 0);
+  const b = firepower(battle, 1);
+  const rows = FIREPOWER_ROWS.filter((r) => r.key !== 'planes' || a.planes + b.planes > 0 || battle.ships.some((s) => s.stats.airWing > 0));
+  return (
+    <div className="firepower">
+      {rows.map((r) => {
+        const x = Math.round(a[r.key]);
+        const y = Math.round(b[r.key]);
+        const share = x + y > 0 ? x / (x + y) : 0.5;
+        return (
+          <div key={r.key} className="fp-cell" title={r.hint}>
+            <div className="fp-head">
+              <ModuleIcon category={r.icon} className="fp-icon" />
+              <span>{r.label}</span>
+            </div>
+            <div className="fp-values">
+              <span className={`side-0-text ${x > y ? 'fp-lead' : ''}`}>{x}</span>
+              <span className={`side-1-text ${y > x ? 'fp-lead' : ''}`}>{y}</span>
+            </div>
+            <div className="fp-bar">
+              <div className="tug-fill side-0" style={{ width: `${share * 100}%` }} />
+              <div className="tug-fill side-1" style={{ width: `${(1 - share) * 100}%` }} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function TugBars({ battle }: { battle: BattleState }) {
   const a = sideTotals(battle, 0);
   const b = sideTotals(battle, 1);
@@ -194,7 +261,8 @@ function TugBars({ battle }: { battle: BattleState }) {
   );
 }
 
-const LINES: { line: 'capital' | 'screen'; title: string }[] = [
+const BOARD_LINES: { line: Line; title: string }[] = [
+  { line: 'carrier', title: 'Carriers' },
   { line: 'capital', title: 'Capital ships' },
   { line: 'screen', title: 'Screens' },
 ];
@@ -202,13 +270,18 @@ const LINES: { line: 'capital' | 'screen'; title: string }[] = [
 /** Both fleets side by side, one row per battle line, ships of a class condensed into one chip. */
 function EngagementBoard({ battle }: { battle: BattleState }) {
   const [open, setOpen] = useState<string | null>(null);
-  const screening = ([0, 1] as const).map((side) => {
+  const cover = ([0, 1] as const).map((side) => {
     const ships = battle.ships.filter((s) => s.side === side);
     const screens = ships.filter((s) => s.status === 'active' && s.stats.line === 'screen').length;
     const capitals = ships.filter((s) => isPresent(s) && s.stats.line === 'capital').length;
-    return { ratio: screeningRatio(BATTLE_CONFIG, screens, capitals), screens, capitals };
+    const activeCapitals = ships.filter((s) => s.status === 'active' && s.stats.line === 'capital').length;
+    const carriers = ships.filter((s) => isPresent(s) && s.stats.line === 'carrier').length;
+    return {
+      screening: screeningRatio(BATTLE_CONFIG, screens, capitals + carriers),
+      carrierCover: carrierCoverRatio(BATTLE_CONFIG, activeCapitals, carriers),
+    };
   });
-  const rows = LINES.filter(({ line }) => battle.ships.some((s) => s.stats.line === line));
+  const rows = BOARD_LINES.filter(({ line }) => battle.ships.some((s) => s.stats.line === line));
   return (
     <Frame className="board" title="Engagement">
       {rows.map(({ line, title }) => (
@@ -217,10 +290,17 @@ function EngagementBoard({ battle }: { battle: BattleState }) {
           <div className="board-label">
             <div className="board-label-title">{title}</div>
             {line === 'screen' && (
-              <div className="board-label-sub" title={`Target ${BATTLE_CONFIG.screening.screensPerCapital} screens per capital`}>
-                <span className="side-0-text">{pctText(screening[0]!.ratio)}</span>
+              <div className="board-label-sub" title={`Target ${BATTLE_CONFIG.screening.screensPerCapital} screens per capital ship or carrier`}>
+                <span className="side-0-text">{pctText(cover[0]!.screening)}</span>
                 <span className="muted"> screening </span>
-                <span className="side-1-text">{pctText(screening[1]!.ratio)}</span>
+                <span className="side-1-text">{pctText(cover[1]!.screening)}</span>
+              </div>
+            )}
+            {line === 'carrier' && (
+              <div className="board-label-sub" title={`Target ${BATTLE_CONFIG.screening.capitalsPerCarrier} capital ship per carrier`}>
+                <span className="side-0-text">{pctText(cover[0]!.carrierCover)}</span>
+                <span className="muted"> cover </span>
+                <span className="side-1-text">{pctText(cover[1]!.carrierCover)}</span>
               </div>
             )}
           </div>
@@ -247,7 +327,7 @@ function GroupCell({
 }: {
   battle: BattleState;
   side: SideIndex;
-  line: 'capital' | 'screen';
+  line: Line;
   open: string | null;
   setOpen: (k: string | null) => void;
 }) {
@@ -273,7 +353,14 @@ function GroupChip({ group: g, open, onToggle }: { group: ShipGroup; open: boole
           {g.active}
           {g.active !== g.ships.length && <span className="group-total">/{g.ships.length}</span>}
         </span>
-        <span className="group-name">{g.className}</span>
+        <span className="group-name">
+          {g.line === 'carrier' && (
+            <span className="group-planes" title="Strike aircraft left on this class's active carriers">
+              ✈ {g.planes}{' '}
+            </span>
+          )}
+          {g.className}
+        </span>
         <span className="group-status">
           {g.retreating > 0 && <span className="st-retreat" title="Retreating">↩{g.retreating}</span>}
           {g.sunk > 0 && <span className="st-sunk" title="Sunk">†{g.sunk}</span>}
@@ -324,6 +411,7 @@ function statTooltip(ship: ShipState): string {
     `Torpedo ${s.torpedoAttack} (pierce ${s.torpedoPiercing})`,
     `Fire control +${Math.round(s.fireControl * 100)}%`,
     `Speed ${s.speed} kn, visibility ${s.visibility}`,
+    `Anti-air ${s.aa}${s.airWing > 0 ? `, strike aircraft ${ship.planes}/${s.airWing}` : ''}`,
   ].join('\n');
 }
 

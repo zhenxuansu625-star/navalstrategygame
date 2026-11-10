@@ -1,6 +1,13 @@
 import type { Line, ShipStats } from '../battle/types';
 
-export type HullClass = 'destroyer' | 'lightCruiser' | 'heavyCruiser' | 'battlecruiser' | 'battleship' | 'superHeavy';
+export type HullClass =
+  | 'destroyer'
+  | 'lightCruiser'
+  | 'heavyCruiser'
+  | 'battlecruiser'
+  | 'battleship'
+  | 'superHeavy'
+  | 'carrier';
 
 export type ModuleCategory =
   | 'fireControl'
@@ -16,9 +23,10 @@ export type ModuleCategory =
   | 'aa'
   | 'asw'
   | 'sensor'
-  | 'extraArmour';
+  | 'extraArmour'
+  | 'hangar';
 
-export type SlotGroup = 'fixed' | 'main' | 'secondary' | 'custom';
+export type SlotGroup = 'fixed' | 'main' | 'deck' | 'secondary' | 'custom';
 
 export interface SlotDef {
   id: string;
@@ -67,6 +75,7 @@ export interface ModuleStats {
   aa: number;
   surfaceDetection: number;
   subDetection: number;
+  airWing: number;
 }
 
 export interface Module {
@@ -91,7 +100,6 @@ export interface Design {
 
 /** Battle stats plus stats that are shown in the designer but not used in battle yet. */
 export interface DesignStats extends ShipStats {
-  aa: number;
   surfaceDetection: number;
   subDetection: number;
 }

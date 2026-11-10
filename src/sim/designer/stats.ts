@@ -18,7 +18,7 @@ function fittedModules(catalog: Catalog, design: Design): Module[] {
 const PIERCING_KEYS = ['lightPiercing', 'heavyPiercing', 'torpedoPiercing'] as const;
 const ADDITIVE_KEYS = [
   'hp', 'armour', 'lightAttack', 'heavyAttack', 'torpedoAttack', 'fireControl',
-  'speed', 'visibility', 'aa', 'surfaceDetection', 'subDetection',
+  'speed', 'visibility', 'aa', 'surfaceDetection', 'subDetection', 'airWing',
 ] as const satisfies readonly (keyof ModuleStats)[];
 
 /**
@@ -44,6 +44,7 @@ export function deriveStats(catalog: Catalog, design: Design): DesignStats {
     speed: hull.speed,
     visibility: hull.visibility,
     aa: 0,
+    airWing: 0,
     surfaceDetection: 0,
     subDetection: 0,
   };

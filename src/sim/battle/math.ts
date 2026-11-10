@@ -102,3 +102,61 @@ export function attackOf(stats: ShipStats, type: AttackType): { attack: number; 
       return { attack: stats.torpedoAttack, piercing: stats.torpedoPiercing };
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Carriers and air strikes                                            */
+/* ------------------------------------------------------------------ */
+
+/** Capital ships relative to the number needed to cover the carriers, in [0, 1]. No carriers counts as fully covered. */
+export function carrierCoverRatio(cfg: BattleConfig, capitals: number, carriers: number): number {
+  if (carriers <= 0) return 1;
+  return clamp(capitals / (carriers * cfg.screening.capitalsPerCarrier), 0, 1);
+}
+
+/** Chance a shot aimed at a carrier reaches it rather than being drawn off by a capital ship. */
+export function carrierReachChance(cfg: BattleConfig, attackType: AttackType, capitals: number, carriers: number): number {
+  if (capitals <= 0) return 1;
+  return 1 - cfg.screening.carrierProtection[attackType] * carrierCoverRatio(cfg, capitals, carriers);
+}
+
+/** Carriers launch on hours 1, 1 + interval, 1 + 2 * interval, ... */
+export function isAirWaveHour(cfg: BattleConfig, hour: number): boolean {
+  return hour >= 1 && (hour - 1) % cfg.air.waveInterval === 0;
+}
+
+/** AA defending a target: its own AA plus a share of the rest of its fleet's. */
+export function effectiveAa(cfg: BattleConfig, targetAa: number, fleetAa: number): number {
+  return targetAa + cfg.air.fleetAaShare * Math.max(0, fleetAa - targetAa);
+}
+
+/** Damage multiplier from AA: 1 with no AA, 0.5 at `aaHalfDamage`. */
+export function aaDamageMultiplier(cfg: BattleConfig, effAa: number): number {
+  return cfg.air.aaHalfDamage / (cfg.air.aaHalfDamage + Math.max(0, effAa));
+}
+
+/** Planes of a wave shot down by AA (rounded to whole planes). */
+export function planesShotDown(cfg: BattleConfig, planes: number, effAa: number): number {
+  const fraction = clamp(cfg.air.lossBase + cfg.air.lossPerAa * Math.max(0, effAa), 0, cfg.air.lossMax);
+  return Math.min(planes, Math.round(planes * fraction));
+}
+
+export interface AirStrike extends HitDamage {
+  shotDown: number;
+  /** Planes that reached the target. */
+  attackers: number;
+}
+
+/** One carrier's wave against one target: losses first, then the survivors' damage reduced by AA. */
+export function airStrike(
+  cfg: BattleConfig,
+  planes: number,
+  target: ShipStats,
+  fleetAa: number,
+  varianceRoll: number,
+): AirStrike {
+  const effAa = effectiveAa(cfg, target.aa, fleetAa);
+  const shotDown = planesShotDown(cfg, planes, effAa);
+  const attackers = planes - shotDown;
+  const attack = attackers * cfg.air.attackPerPlane * aaDamageMultiplier(cfg, effAa);
+  return { ...hitDamage(cfg, attack, cfg.air.piercing, target, varianceRoll), shotDown, attackers };
+}

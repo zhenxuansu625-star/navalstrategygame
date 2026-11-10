@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { AGGRESSIVENESS, BATTLE_CONFIG, type AggressivenessId } from '../data/battle';
-import { screeningRatio } from '../sim/battle';
+import { carrierCoverRatio, screeningRatio } from '../sim/battle';
 import { DEFAULT_CATALOG, deriveStats, isValidDesign, type Design, type FleetSetup } from '../sim/designer';
 import { ShipSilhouette } from './art/ShipSilhouette';
 import { Frame } from './components';
 import { pct } from './format';
+import { SCENARIOS } from '../data/scenarios';
 import { load, save } from './storage';
 
 interface Props {
@@ -38,6 +39,22 @@ export function FleetEditor({ fleets, setFleets, designs, problems, onReset }: P
               <span className="side-1-text">{fleets[1].name}</span> {count(fleets[1])} ships
             </span>
           )}
+          <select
+            className="scenario-select"
+            value=""
+            title="Replace both fleets with a ready-made test battle"
+            onChange={(e) => {
+              const sc = SCENARIOS.find((x) => x.id === e.target.value);
+              if (sc) setFleets([structuredClone(sc.fleets[0]), structuredClone(sc.fleets[1])]);
+            }}
+          >
+            <option value="">Load scenario...</option>
+            {SCENARIOS.map((sc) => (
+              <option key={sc.id} value={sc.id} title={sc.description}>
+                {sc.name}
+              </option>
+            ))}
+          </select>
           {open && <button onClick={onReset}>Reset fleets</button>}
           <button className={open ? '' : 'primary'} onClick={() => setOpen(!open)}>
             {open ? 'Done' : 'Edit fleets'}
@@ -81,10 +98,13 @@ function SideEditor({
   const byId = new Map(designs.map((d) => [d.id, d]));
   let screens = 0;
   let capitals = 0;
+  let carriers = 0;
   for (const e of fleet.ships) {
     const d = byId.get(e.designId);
     if (!d || !isValidDesign(DEFAULT_CATALOG, d)) continue;
-    if (deriveStats(DEFAULT_CATALOG, d).line === 'screen') screens += e.count;
+    const line = deriveStats(DEFAULT_CATALOG, d).line;
+    if (line === 'screen') screens += e.count;
+    else if (line === 'carrier') carriers += e.count;
     else capitals += e.count;
   }
   const setEntry = (i: number, patch: Partial<FleetSetup['ships'][number]>) =>
@@ -106,10 +126,18 @@ function SideEditor({
         </select>
       </div>
       <div className="task-force-meta">
-        <span>{screens + capitals} ships</span>
-        <span>{capitals} capitals · {screens} screens</span>
+        <span>{screens + capitals + carriers} ships</span>
         <span>
-          Screening {pct(screeningRatio(BATTLE_CONFIG, screens, capitals))} (target {BATTLE_CONFIG.screening.screensPerCapital} per capital)
+          {carriers > 0 && <>{carriers} carriers · </>}
+          {capitals} capitals · {screens} screens
+        </span>
+        <span>
+          Screening {pct(screeningRatio(BATTLE_CONFIG, screens, capitals + carriers))} (target {BATTLE_CONFIG.screening.screensPerCapital} per capital ship or carrier)
+          {carriers > 0 && (
+            <>
+              {' '}· Carrier cover {pct(carrierCoverRatio(BATTLE_CONFIG, capitals, carriers))} (target {BATTLE_CONFIG.screening.capitalsPerCarrier} capital per carrier)
+            </>
+          )}
         </span>
       </div>
       {fleet.ships.map((entry, i) => (

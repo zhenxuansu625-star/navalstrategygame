@@ -88,8 +88,23 @@ const GLYPHS: Record<ModuleCategory | 'empty', () => React.ReactNode> = {
       <path d="M10.5 9.5L18 2M12 21v-6M8 21h8" {...S} />
     </>
   ),
+  hangar: () => <PlaneGlyph />,
   empty: () => <path d="M12 7v10M7 12h10" {...S} strokeOpacity={0.6} />,
 };
+
+function PlaneGlyph() {
+  return (
+    <path
+      d="M12 3c.9 0 1.4.8 1.4 2v4.2l7.1 4v1.9l-7.1-2.2v4.6l2.1 1.6v1.6L12 20l-3.5.9v-1.6l2.1-1.6v-4.6l-7.1 2.2v-1.9l7.1-4V5c0-1.2.5-2 1.4-2z"
+      {...S}
+      fill="currentColor"
+      fillOpacity={0.25}
+    />
+  );
+}
+
+/** Icons for the battle firepower panel. */
+export type StatIconKind = 'lightBattery' | 'heavyBattery' | 'torpedo' | 'hangar' | 'aa';
 
 export function ModuleIcon({ category, className }: { category: ModuleCategory | 'empty'; className?: string }) {
   return (

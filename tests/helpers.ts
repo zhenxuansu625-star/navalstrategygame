@@ -19,7 +19,23 @@ export const TEST_CONFIG: BattleConfig = {
   },
   damage: { variance: 0.25, underPierceMultiplier: 0.1 },
   organisation: { damageMultiplier: 1, underPierceMultiplier: 0.5 },
-  screening: { screensPerCapital: 3, protection: { light: 0.5, heavy: 0.5, torpedo: 0.8 } },
+  screening: {
+    screensPerCapital: 3,
+    protection: { light: 0.5, heavy: 0.5, torpedo: 0.8 },
+    capitalsPerCarrier: 1,
+    carrierProtection: { light: 0.5, heavy: 0.5, torpedo: 0.5 },
+  },
+  air: {
+    waveInterval: 3,
+    attackPerPlane: 1,
+    piercing: 40,
+    lineWeight: { screen: 1, capital: 2, carrier: 3 },
+    fleetAaShare: 0.5,
+    aaHalfDamage: 20,
+    lossBase: 0.1,
+    lossPerAa: 0.01,
+    lossMax: 0.5,
+  },
   escape: { base: 0.4, perKnot: 0.05, min: 0.05, max: 0.95 },
 };
 
@@ -38,6 +54,8 @@ export function stats(overrides: Partial<ShipStats> = {}): ShipStats {
     fireControl: 0,
     speed: 25,
     visibility: 20,
+    aa: 0,
+    airWing: 0,
     ...overrides,
   };
 }

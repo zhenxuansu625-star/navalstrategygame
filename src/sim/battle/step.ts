@@ -7,11 +7,14 @@
 import { AGGRESSIVENESS, BATTLE_CONFIG, type BattleConfig } from '../../data/battle';
 import { pickWeighted, type Rng } from '../rng';
 import {
+  airStrike,
   attackOf,
   capitalReachChance,
+  carrierReachChance,
   escapeChance,
   hitChance,
   hitDamage,
+  isAirWaveHour,
   retreatReason,
 } from './math';
 import {
@@ -38,6 +41,7 @@ export function createBattle(setup: BattleSetup): BattleState {
         stats: { ...s.stats },
         hp: s.stats.hp,
         org: s.stats.org,
+        planes: s.stats.airWing ?? 0,
         status: 'active',
         shotsFired: 0,
         hits: 0,
@@ -104,6 +108,8 @@ export function step(
     if (targets.length === 0) continue;
     const enemyScreens = targets.filter((s) => s.status === 'active' && s.stats.line === 'screen');
     const enemyCapitals = targets.filter((s) => s.stats.line === 'capital').length;
+    const enemyCarriers = targets.filter((s) => s.stats.line === 'carrier').length;
+    const enemyCoveringCapitals = targets.filter((s) => s.status === 'active' && s.stats.line === 'capital');
     let shots = 0;
     let hits = 0;
     let hpDamage = 0;
@@ -118,10 +124,18 @@ export function step(
 
         let target = pickWeighted(rng, targets, (t) => targetWeight(cfg, attackType, t));
         if (!target) continue;
-        if (target.stats.line === 'capital' && enemyScreens.length > 0) {
-          const reach = capitalReachChance(cfg, attackType, enemyScreens.length, enemyCapitals);
+        // Screens shield both capitals and carriers; capitals in turn shield the carriers.
+        if (target.stats.line !== 'screen' && enemyScreens.length > 0) {
+          const reach = capitalReachChance(cfg, attackType, enemyScreens.length, enemyCapitals + enemyCarriers);
           if (rng.next() >= reach) {
             target = pickWeighted(rng, enemyScreens, (t) => t.stats.visibility) ?? target;
+            screened += 1;
+          }
+        }
+        if (target.stats.line === 'carrier' && enemyCoveringCapitals.length > 0) {
+          const reach = carrierReachChance(cfg, attackType, enemyCoveringCapitals.length, enemyCarriers);
+          if (rng.next() >= reach) {
+            target = pickWeighted(rng, enemyCoveringCapitals, (t) => t.stats.visibility) ?? target;
             screened += 1;
           }
         }
@@ -165,6 +179,43 @@ export function step(
     }
     if (shots > 0) {
       log.push({ hour, type: 'fire', side, shots, hits, hpDamage, orgDamage, screened });
+    }
+  }
+
+  // 2b. Carrier air strikes, also against the start-of-hour picture.
+  if (isAirWaveHour(cfg, hour)) {
+    for (const side of [0, 1] as const) {
+      const enemySide = other(side);
+      const targets = next.ships.filter((s) => s.side === enemySide && isPresent(s));
+      if (targets.length === 0) continue;
+      const fleetAa = targets.reduce((sum, t) => sum + t.stats.aa, 0);
+      for (const carrier of next.ships) {
+        if (carrier.side !== side || carrier.status !== 'active' || carrier.planes <= 0) continue;
+        const target = pickWeighted(rng, targets, (t) => airTargetWeight(cfg, t));
+        if (!target) continue;
+        const strike = airStrike(cfg, carrier.planes, target.stats, fleetAa, rng.next());
+        const launched = carrier.planes;
+        carrier.planes -= strike.shotDown;
+        carrier.damageDealt += strike.hp;
+        carrier.hits += 1;
+        const p = pending.get(target.id) ?? { hp: 0, org: 0, byAttacker: new Map<string, number>() };
+        p.hp += strike.hp;
+        p.org += strike.org;
+        p.byAttacker.set(carrier.id, (p.byAttacker.get(carrier.id) ?? 0) + strike.hp);
+        pending.set(target.id, p);
+        log.push({
+          hour,
+          type: 'air',
+          side,
+          carrier: carrier.name,
+          planes: launched,
+          target: target.name,
+          hpDamage: strike.hp,
+          orgDamage: strike.org,
+          pierced: strike.pierced,
+          shotDown: strike.shotDown,
+        });
+      }
     }
   }
 
@@ -221,6 +272,11 @@ function targetWeight(cfg: BattleConfig, attackType: AttackType, t: ShipState): 
   const lineWeight = cfg.targeting.lineWeight[attackType][t.stats.line];
   const retreating = t.status === 'retreating' ? cfg.targeting.retreatingWeight : 1;
   return t.stats.visibility * lineWeight * retreating;
+}
+
+function airTargetWeight(cfg: BattleConfig, t: ShipState): number {
+  const retreating = t.status === 'retreating' ? cfg.targeting.retreatingWeight : 1;
+  return t.stats.visibility * cfg.air.lineWeight[t.stats.line] * retreating;
 }
 
 function fastestActiveSpeed(ships: ShipState[], side: SideIndex): number | null {

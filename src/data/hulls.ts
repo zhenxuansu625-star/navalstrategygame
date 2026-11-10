@@ -31,6 +31,25 @@ function slots(opts: {
   return out;
 }
 
+/** Carriers have no main armament: hangars set the air wing instead. */
+function carrierSlots(hangars: number, secondary: number, custom: number): SlotDef[] {
+  const out: SlotDef[] = [
+    { id: 'fireControl', label: 'Fire control', group: 'fixed', accepts: ['fireControl'], required: true },
+    { id: 'engine', label: 'Engine', group: 'fixed', accepts: ['engine'], required: true },
+    { id: 'armour', label: 'Deck armour', group: 'fixed', accepts: ['armour'], required: true },
+  ];
+  for (let i = 1; i <= hangars; i++) {
+    out.push({ id: `hangar${i}`, label: `Hangar ${i}`, group: 'deck', accepts: ['hangar'], required: i === 1 });
+  }
+  for (let i = 1; i <= secondary; i++) {
+    out.push({ id: `secondary${i}`, label: `Secondary ${i}`, group: 'secondary', accepts: SECONDARY, required: false });
+  }
+  for (let i = 1; i <= custom; i++) {
+    out.push({ id: `custom${i}`, label: `Custom ${i}`, group: 'custom', accepts: ['aa', 'sensor', 'asw', 'extraArmour'], required: false });
+  }
+  return out;
+}
+
 type HullRow = [id: string, name: string, year: number, hp: number, armour: number, visibility: number, speed: number, production: number, steel: number, chromium: number, slots: SlotDef[]];
 
 function hulls(hullClass: HullClass, line: Hull['line'], org: number, rows: HullRow[]): Hull[] {
@@ -82,6 +101,11 @@ export const HULLS: Hull[] = [
     ['bb3', 'Battleship III', 1922, 250, 9, 32, 18, 7500, 14, 0, capital(3, 2)],
     ['bb4', 'Battleship IV', 1936, 280, 10, 33, 21, 8500, 16, 0, capital(3, 3)],
   ]),
+  ...hulls('carrier', 'carrier', 40, [
+    ['cv1', 'Carrier I', 1922, 160, 4, 34, 24, 6000, 8, 0, carrierSlots(2, 2, 2)],
+    ['cv2', 'Carrier II', 1932, 190, 5, 36, 26, 7000, 9, 0, carrierSlots(3, 2, 3)],
+    ['cv3', 'Carrier III', 1940, 230, 6, 38, 27, 8200, 10, 1, carrierSlots(4, 3, 3)],
+  ]),
   ...hulls('superHeavy', 'capital', 40, [
     ['sh1', 'Super-heavy Battleship', 1940, 340, 12, 38, 19, 11000, 20, 2, capital(3, 3, ['heavyBattery', 'superHeavyBattery'], ['heavyBattery', 'superHeavyBattery'])],
   ]),
@@ -94,4 +118,5 @@ export const HULL_CLASS_NAMES: Record<HullClass, string> = {
   battlecruiser: 'Battlecruiser',
   battleship: 'Battleship',
   superHeavy: 'Super-heavy battleship',
+  carrier: 'Aircraft carrier',
 };

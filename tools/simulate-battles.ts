@@ -3,12 +3,14 @@
  * prints win rates, battle length and losses. Slice 4 grows this into the
  * full design-vs-design harness.
  *
- * Usage: npm run simulate [-- --runs 1000]
+ * Usage: npm run simulate [-- --runs 1000] [-- --scenario default|jutland|carriers]
  */
 import { createBattle, runBattle } from '../src/sim/battle';
 import type { BattleSetup } from '../src/sim/battle';
+import { PRESET_DESIGNS } from '../src/data/designs';
+import { SCENARIOS, SHIP_NAMES } from '../src/data/scenarios';
+import { buildBattleSetup, DEFAULT_CATALOG } from '../src/sim/designer';
 import { createRng } from '../src/sim/rng';
-import { defaultBattleSetup } from '../src/sim/scenario';
 
 export interface SimulationReport {
   runs: number;
@@ -51,13 +53,22 @@ export function simulate(setup: BattleSetup, runs: number, firstSeed = 1): Simul
 }
 
 function main() {
-  const idx = process.argv.indexOf('--runs');
-  const runs = idx >= 0 ? Number(process.argv[idx + 1]) : 1000;
-  const setup = defaultBattleSetup();
+  const arg = (name: string) => {
+    const i = process.argv.indexOf(name);
+    return i >= 0 ? process.argv[i + 1] : undefined;
+  };
+  const runs = Number(arg('--runs') ?? 1000);
+  const scenarioId = arg('--scenario') ?? 'default';
+  const scenario = SCENARIOS.find((s) => s.id === scenarioId);
+  if (!scenario) {
+    console.error(`Unknown scenario "${scenarioId}". Available: ${SCENARIOS.map((s) => s.id).join(', ')}`);
+    process.exit(1);
+  }
+  const setup = buildBattleSetup(DEFAULT_CATALOG, PRESET_DESIGNS, scenario.fleets, SHIP_NAMES).setup;
   const r = simulate(setup, runs);
   const pct = (n: number) => `${((n / r.runs) * 100).toFixed(1)}%`;
   const [a, b] = setup.sides;
-  console.log(`Scenario: ${a.name} (${a.ships.length} ships) vs ${b.name} (${b.ships.length} ships), ${r.runs} seeded runs`);
+  console.log(`Scenario "${scenario.name}": ${a.name} (${a.ships.length} ships) vs ${b.name} (${b.ships.length} ships), ${r.runs} seeded runs`);
   console.log(`  ${a.name} wins: ${pct(r.wins[0])}`);
   console.log(`  ${b.name} wins: ${pct(r.wins[1])}`);
   console.log(`  Draws:          ${pct(r.draws)}`);
