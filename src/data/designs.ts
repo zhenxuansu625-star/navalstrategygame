@@ -6,6 +6,18 @@ const d = (id: string, name: string, role: string, hullId: string, slots: Record
 });
 
 export const PRESET_DESIGNS: Design[] = [
+  // 1890s
+  d('preset_dd_1895', 'Torpedo boat destroyer 1895', 'Torpedo destroyer', 'dd1', {
+    fireControl: 'fc_basic', engine: 'eng_light1', mainFront: 'lb1', mainRear: 'torp1', custom1: 'torp1',
+  }),
+  d('preset_cl_1895', 'Protected cruiser 1895', 'Scout cruiser', 'cl1', {
+    fireControl: 'fc_basic', engine: 'eng_light1', armour: 'arm_lc1',
+    mainFront: 'lb1', mainMid: 'lb1', mainRear: 'lb1', custom1: 'torp1',
+  }),
+  d('preset_ca_1898', 'Armoured cruiser 1898', 'Armoured cruiser', 'ca1', {
+    fireControl: 'fc_basic', engine: 'eng_cruiser1', armour: 'arm_ca1',
+    mainFront: 'mb1', mainMid: 'lb1', mainRear: 'mb1', secondary1: 'sec1', custom1: 'torp1',
+  }),
   d('preset_dd_1915', 'Destroyer 1915', 'Torpedo destroyer', 'dd2', {
     fireControl: 'fc_basic', engine: 'eng_light2', mainFront: 'lb2', mainRear: 'torp2', custom1: 'torp2',
   }),
@@ -58,6 +70,10 @@ export const PRESET_DESIGNS: Design[] = [
     fireControl: 'fc_director', engine: 'eng_bb3', armour: 'arm_bb4',
     mainFront: 'hb4', mainMid: 'hb4', mainRear: 'hb4', secondary1: 'dp2', secondary2: 'dp2', secondary3: 'dp2',
     custom1: 'aa2', custom2: 'aa2', custom3: 'radar1',
+  }),
+  d('preset_cv_1924', 'Carrier 1924', 'Experimental carrier', 'cv1', {
+    fireControl: 'fc_rangefinder', engine: 'eng_cruiser2', armour: 'arm_cv1',
+    hangar1: 'hangar1', hangar2: 'hangar1', secondary1: 'sec2', secondary2: 'sec2', custom1: null, custom2: null,
   }),
   // WW2 carriers
   d('preset_cv_1940', 'Light carrier 1940', 'Escort carrier', 'cv2', {

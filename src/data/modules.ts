@@ -20,7 +20,7 @@ export const MODULES: Module[] = [
   ...cat('fireControl', [
     ['fc_basic', 'Basic fire control', 1890, { fireControl: 0 }, 50, 0, 0],
     ['fc_rangefinder', 'Improved rangefinders', 1906, { fireControl: 0.02 }, 120, 0, 0],
-    ['fc_director', 'Director firing', 1916, { fireControl: 0.04 }, 200, 0, 0],
+    ['fc_director', 'Director firing', 1914, { fireControl: 0.04 }, 200, 0, 0],
     ['fc_radar', 'Radar ranging', 1940, { fireControl: 0.07, surfaceDetection: 4 }, 400, 0, 2],
   ]),
   ...cat('engine', [

@@ -5,7 +5,7 @@ Design notes live in [`docs/`](docs/); the build order is in [`docs/08-roadmap.m
 
 **Play it:** https://zhenxuansu625-star.github.io/navalstrategygame/ (deployed from `main` by GitHub Actions).
 
-## Current state: roadmap slices 1 and 2, plus early carriers
+## Current state: roadmap slices 1, 2 and 5, plus early carriers
 
 - **Ship designer:** pick a hull, fill its fixed, main, secondary and custom slots, and see
   derived stats, production cost, build time, a comparison with another design and a piercing check
@@ -24,6 +24,25 @@ Design notes live in [`docs/`](docs/); the build order is in [`docs/08-roadmap.m
   Dreadnought clash (1916) and Carrier strike (1942). `npm run simulate -- --scenario carriers` runs
   any of them 1,000 times.
 
+### Campaign (slice 5: the economy loop)
+
+- **Monthly turns.** Civilian factories build civilian factories, dockyards and infrastructure through a
+  construction queue (up to 10 factories per project; consumer goods take a share). Factories and dockyards
+  each need a building slot, and infrastructure adds slots at a rising cost.
+- **Naval production lines** build your saved designs and the presets. Each line takes dockyards up to a cap,
+  gains efficiency the longer it runs, and slows down if steel or chromium runs short. Trade imports
+  resources at the cost of factories. Lines higher in the list get dockyards and resources first.
+- **Eight nations** with their own starting industry, fleet and traits (for example American carrier yards
+  and Japanese torpedoes), and one AI rival that follows its own industrial strategy.
+- **Tech years.** Until research exists, a design can be laid down once the year reaches its newest
+  technology, so pick the start year to suit the ships you want to build.
+- **War game.** Fight your whole fleet against the rival's at any time; nothing is lost.
+
+`npm run simulate:economy` prints the balance report: when to switch from factories to dockyards
+(by naval output and by battles between the resulting fleets) and what each nation's traits are worth.
+The short version: rushing dockyards wins a war in the first seven or so years, growing industry
+first wins after about ten, and in between it is close.
+
 ## Development
 
 ```sh
@@ -31,6 +50,7 @@ npm install
 npm run dev        # local dev server
 npm test           # unit tests (Vitest)
 npm run simulate   # 1,000 seeded battles of the default fleets, win rates and losses
+npm run simulate:economy   # economy and nation balance report (add -- --quick to skip battles)
 npm run build      # typecheck and production build
 ```
 

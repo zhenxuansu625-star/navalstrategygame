@@ -3,11 +3,12 @@ import { PRESET_DESIGNS } from '../data/designs';
 import { DEFAULT_FLEETS, SHIP_NAMES } from '../data/scenarios';
 import { buildBattleSetup, DEFAULT_CATALOG, type Design, type FleetSetup } from '../sim/designer';
 import { BattleView } from './BattleView';
+import { CampaignView } from './CampaignView';
 import { DesignerView } from './DesignerView';
 import { FleetEditor } from './FleetEditor';
 import { load, save } from './storage';
 
-type Tab = 'designer' | 'sandbox';
+type Tab = 'designer' | 'campaign' | 'sandbox';
 
 export function App() {
   const [tab, setTab] = useState<Tab>(() => load<Tab>('tab', 'designer'));
@@ -38,6 +39,9 @@ export function App() {
           <button className={tab === 'designer' ? 'active' : ''} onClick={() => setTab('designer')}>
             Ship designer
           </button>
+          <button className={tab === 'campaign' ? 'active' : ''} onClick={() => setTab('campaign')}>
+            Campaign
+          </button>
           <button className={tab === 'sandbox' ? 'active' : ''} onClick={() => setTab('sandbox')}>
             Battle sandbox
           </button>
@@ -46,6 +50,8 @@ export function App() {
       <main>
         {tab === 'designer' ? (
           <DesignerView userDesigns={userDesigns} setUserDesigns={setUserDesigns} allDesigns={allDesigns} />
+        ) : tab === 'campaign' ? (
+          <CampaignView designs={allDesigns} />
         ) : (
           <>
             <FleetEditor
