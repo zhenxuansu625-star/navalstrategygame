@@ -1,0 +1,156 @@
+import { describe, expect, it } from 'vitest';
+import { DEFAULT_SCENARIO } from '../src/data/scenarios';
+import { createBattle, formatLogEvent, runBattle, step } from '../src/sim/battle';
+import type { BattleSetup, BattleState, ShipStats, SideSetup } from '../src/sim/battle';
+import { createRng, rngFromState } from '../src/sim/rng';
+import { stats, TEST_CONFIG as cfg } from './helpers';
+
+function side(name: string, ships: Array<[string, ShipStats]>, aggressiveness: SideSetup['aggressiveness'] = 'mediumRisk'): SideSetup {
+  return { name, aggressiveness, ships: ships.map(([n, s]) => ({ name: n, className: s.line === 'screen' ? 'Screen' : 'Capital', stats: s })) };
+}
+
+const gunship = (o: Partial<ShipStats> = {}) => stats({ heavyAttack: 20, heavyPiercing: 20, ...o });
+
+describe('battle engine', () => {
+  it('is deterministic for a given seed', () => {
+    const a = runBattle(createBattle(DEFAULT_SCENARIO), createRng(123));
+    const b = runBattle(createBattle(DEFAULT_SCENARIO), createRng(123));
+    expect(a).toEqual(b);
+  });
+
+  it('different seeds give different battles', () => {
+    const a = runBattle(createBattle(DEFAULT_SCENARIO), createRng(1));
+    const b = runBattle(createBattle(DEFAULT_SCENARIO), createRng(2));
+    expect(a.log).not.toEqual(b.log);
+  });
+
+  it('does not mutate the input state', () => {
+    const s0 = createBattle(DEFAULT_SCENARIO);
+    const snapshot = structuredClone(s0);
+    step(s0, {}, createRng(5));
+    expect(s0).toEqual(snapshot);
+  });
+
+  it('always ends within maxHours with a result', () => {
+    for (let seed = 1; seed <= 50; seed++) {
+      const end = runBattle(createBattle(DEFAULT_SCENARIO), createRng(seed));
+      expect(end.result).toBeDefined();
+      expect(end.hour).toBeLessThanOrEqual(24);
+      expect(end.log.at(-1)?.type).toBe('end');
+    }
+  });
+
+  it('state survives a JSON round-trip and continues identically', () => {
+    const rng = createRng(77);
+    let s: BattleState = createBattle(DEFAULT_SCENARIO);
+    for (let i = 0; i < 3; i++) s = step(s, {}, rng);
+    const saved = JSON.stringify({ state: s, rng: rng.getState() });
+
+    const direct = runBattle(s, rng);
+    const loaded = JSON.parse(saved) as { state: BattleState; rng: number };
+    const resumed = runBattle(loaded.state, rngFromState(loaded.rng));
+    expect(resumed).toEqual(direct);
+  });
+
+  it('a finished battle does not advance', () => {
+    const end = runBattle(createBattle(DEFAULT_SCENARIO), createRng(9));
+    expect(step(end, {}, createRng(1))).toBe(end);
+  });
+
+  it('sunk ships stop firing and stay sunk', () => {
+    const rng = createRng(11);
+    let s = createBattle(DEFAULT_SCENARIO);
+    const firedWhenSunk = new Map<string, number>();
+    while (!s.result) {
+      s = step(s, {}, rng);
+      for (const ship of s.ships) {
+        if (ship.status === 'sunk') {
+          expect(ship.hp).toBe(0);
+          const prev = firedWhenSunk.get(ship.id);
+          if (prev === undefined) firedWhenSunk.set(ship.id, ship.shotsFired);
+          else expect(ship.shotsFired).toBe(prev);
+        }
+      }
+    }
+  });
+
+  it('a ship retreats once HP or org drops below the fleet threshold', () => {
+    // A lone target with medium risk (50%) facing overwhelming fire.
+    const setup: BattleSetup = {
+      sides: [
+        side('Attackers', Array.from({ length: 6 }, (_, i) => [`A${i}`, gunship()] as [string, ShipStats])),
+        side('Defender', [['D', stats({ hp: 1000, org: 50, armour: 0 })]]),
+      ],
+    };
+    const rng = createRng(4);
+    let s = createBattle(setup);
+    while (!s.result) {
+      const before = s.ships.find((x) => x.name === 'D')!;
+      s = step(s, {}, rng, cfg);
+      const d = s.ships.find((x) => x.name === 'D')!;
+      if (before.status === 'active' && d.status === 'retreating') {
+        expect(d.hp / d.stats.hp < 0.5 || d.org / d.stats.org < 0.5).toBe(true);
+        expect(s.log.some((e) => e.type === 'retreat' && e.ship === 'D')).toBe(true);
+        return;
+      }
+      if (d.status === 'active') expect(d.org / d.stats.org).toBeGreaterThanOrEqual(0.5);
+    }
+    throw new Error('defender never retreated');
+  });
+
+  it('always-engage ships never retreat', () => {
+    const setup: BattleSetup = {
+      sides: [
+        side('A', [['A1', gunship()], ['A2', gunship()]], 'alwaysEngage'),
+        side('B', [['B1', gunship()], ['B2', gunship()]], 'alwaysEngage'),
+      ],
+    };
+    for (let seed = 1; seed <= 20; seed++) {
+      const end = runBattle(createBattle(setup), createRng(seed), cfg);
+      expect(end.ships.every((x) => x.status !== 'retreating' && x.status !== 'escaped')).toBe(true);
+    }
+  });
+
+  it('screens draw fire away from capitals, and unscreened fleets get no protection', () => {
+    const attackers = side('Attackers', Array.from({ length: 4 }, (_, i) => [`A${i}`, gunship()] as [string, ShipStats]), 'alwaysEngage');
+    const capital = (): [string, ShipStats] => ['Cap', stats({ hp: 5000, org: 5000, visibility: 30 })];
+    const screen = (n: number): [string, ShipStats] => [`S${n}`, stats({ line: 'screen', hp: 5000, org: 5000, visibility: 10 })];
+
+    const damageToCapital = (setup: BattleSetup) => {
+      let screened = 0;
+      let capitalHpLost = 0;
+      for (let seed = 1; seed <= 30; seed++) {
+        const end = runBattle(createBattle(setup), createRng(seed), { ...cfg, maxHours: 5 });
+        for (const e of end.log) if (e.type === 'fire' && e.side === 0) screened += e.screened;
+        const cap = end.ships.find((x) => x.name === 'Cap')!;
+        capitalHpLost += cap.stats.hp - cap.hp;
+      }
+      return { screened, capitalHpLost };
+    };
+
+    const unscreened = damageToCapital({ sides: [attackers, side('D', [capital()], 'alwaysEngage')] });
+    const screenedFleet = damageToCapital({
+      sides: [attackers, side('D', [capital(), screen(1), screen(2), screen(3)], 'alwaysEngage')],
+    });
+    expect(unscreened.screened).toBe(0);
+    expect(screenedFleet.screened).toBeGreaterThan(0);
+    expect(screenedFleet.capitalHpLost).toBeLessThan(unscreened.capitalHpLost * 0.7);
+  });
+
+  it('logs a non-piercing hit once per attacker class, weapon and target class', () => {
+    const setup: BattleSetup = {
+      sides: [
+        side('A', [['A1', stats({ lightAttack: 10, lightPiercing: 1 })], ['A2', stats({ lightAttack: 10, lightPiercing: 1 })]], 'alwaysEngage'),
+        side('B', [['B1', stats({ armour: 50, hp: 5000 })]], 'alwaysEngage'),
+      ],
+    };
+    const end = runBattle(createBattle(setup), createRng(1), { ...cfg, maxHours: 10 });
+    expect(end.ships.filter((x) => x.side === 0).reduce((n, x) => n + x.nonPiercingHits, 0)).toBeGreaterThan(1);
+    expect(end.log.filter((e) => e.type === 'bounce')).toHaveLength(1);
+  });
+
+  it('every log event formats to a sentence', () => {
+    const end = runBattle(createBattle(DEFAULT_SCENARIO), createRng(3));
+    for (const e of end.log) expect(formatLogEvent(end, e).length).toBeGreaterThan(10);
+  });
+});
