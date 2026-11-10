@@ -5,7 +5,11 @@
 import type { AttackType, Line } from '../sim/battle/types';
 
 export interface BattleConfig {
-  /** Battle ends inconclusively after this many hourly ticks. */
+  /**
+   * Safety limit only. Battles run until one fleet is destroyed or has fully
+   * withdrawn; this stops a true stalemate (fleets that cannot damage each
+   * other) from running forever. Normal battles end long before it.
+   */
   maxHours: number;
   hit: {
     /** Base hit chance per attack type, before modifiers. */
@@ -60,7 +64,7 @@ export interface BattleConfig {
 }
 
 export const BATTLE_CONFIG: BattleConfig = {
-  maxHours: 24,
+  maxHours: 500,
   hit: {
     base: { light: 0.35, heavy: 0.3, torpedo: 0.18 },
     visibilityPerPoint: 0.008,

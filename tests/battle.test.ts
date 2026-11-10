@@ -3,6 +3,7 @@ import { defaultBattleSetup } from '../src/sim/scenario';
 import { createBattle, formatLogEvent, runBattle, step } from '../src/sim/battle';
 import type { BattleSetup, BattleState, ShipStats, SideSetup } from '../src/sim/battle';
 import { createRng, rngFromState } from '../src/sim/rng';
+import { BATTLE_CONFIG } from '../src/data/battle';
 import { stats, TEST_CONFIG as cfg } from './helpers';
 
 function side(name: string, ships: Array<[string, ShipStats]>, aggressiveness: SideSetup['aggressiveness'] = 'mediumRisk'): SideSetup {
@@ -33,13 +34,66 @@ describe('battle engine', () => {
     expect(s0).toEqual(snapshot);
   });
 
-  it('always ends within maxHours with a result', () => {
-    for (let seed = 1; seed <= 50; seed++) {
+  it('runs until one fleet has no ships left, well before the stalemate limit', () => {
+    for (let seed = 1; seed <= 100; seed++) {
       const end = runBattle(createBattle(DEFAULT_SCENARIO), createRng(seed));
       expect(end.result).toBeDefined();
-      expect(end.hour).toBeLessThanOrEqual(24);
       expect(end.log.at(-1)?.type).toBe('end');
+      expect(end.hour).toBeLessThan(BATTLE_CONFIG.maxHours);
+      const left = (side: 0 | 1) => end.ships.filter((x) => x.side === side && (x.status === 'active' || x.status === 'retreating')).length;
+      // A fleet is only beaten once every ship is sunk or has escaped.
+      expect(left(0) === 0 || left(1) === 0).toBe(true);
+      if (end.result!.winner !== 'draw') expect(left(end.result!.winner === 0 ? 1 : 0)).toBe(0);
     }
+  });
+
+  it('keeps fighting past hour 24', () => {
+    const lengths = Array.from({ length: 100 }, (_, i) => runBattle(createBattle(DEFAULT_SCENARIO), createRng(i + 1)).hour);
+    expect(Math.max(...lengths)).toBeGreaterThan(24);
+  });
+
+  it('says whether the loser was destroyed or withdrew', () => {
+    const fight = (aggressiveness: SideSetup['aggressiveness']) =>
+      runBattle(
+        createBattle({
+          sides: [
+            side('Hunters', Array.from({ length: 6 }, (_, i) => [`H${i}`, gunship({ speed: 40 })] as [string, ShipStats]), 'alwaysEngage'),
+            side('Prey', [['P', stats({ hp: 60, org: 50, speed: 10 })]], aggressiveness),
+          ],
+        }),
+        createRng(2),
+        cfg,
+      ).result!;
+    const destroyed = fight('alwaysEngage');
+    expect(destroyed.winner).toBe(0);
+    expect(destroyed.reason).toBe('Prey was destroyed.');
+
+    const fled = Array.from({ length: 20 }, (_, i) =>
+      runBattle(
+        createBattle({
+          sides: [
+            side('Hunters', [['H', gunship({ heavyAttack: 10, speed: 10 })]], 'alwaysEngage'),
+            side('Prey', [['P', stats({ hp: 500, org: 50, speed: 40 })]], 'lowRisk'),
+          ],
+        }),
+        createRng(i + 1),
+        { ...cfg, maxHours: 500 },
+      ).result!,
+    ).find((r) => r.reason.includes('withdrawn'));
+    expect(fled?.winner).toBe(0);
+    expect(fled?.reason).toBe('Prey has withdrawn from the battle (1 escaped, 0 sunk).');
+  });
+
+  it('stops a true stalemate at the safety limit as a draw', () => {
+    const harmless = (n: string): [string, ShipStats] => [n, stats()]; // no weapons at all
+    const end = runBattle(
+      createBattle({ sides: [side('A', [harmless('a')], 'alwaysEngage'), side('B', [harmless('b')], 'alwaysEngage')] }),
+      createRng(1),
+      { ...cfg, maxHours: 50 },
+    );
+    expect(end.hour).toBe(50);
+    expect(end.result).toMatchObject({ winner: 'draw' });
+    expect(end.result!.reason).toContain('Stalemate');
   });
 
   it('state survives a JSON round-trip and continues identically', () => {
