@@ -15,7 +15,8 @@ export function formatLogEvent(state: Pick<BattleState, 'sides'>, e: LogEvent): 
     case 'start':
       return e.text;
     case 'fire': {
-      const screened = e.screened > 0 ? ` ${e.screened} shots at capitals were drawn off by screens.` : '';
+      const screened =
+        e.screened > 0 ? ` ${e.screened} ${e.screened === 1 ? 'shot' : 'shots'} at capitals ${e.screened === 1 ? 'was' : 'were'} drawn off by screens.` : '';
       return `${side(e.side)}: ${e.hits}/${e.shots} hits for ${r(e.hpDamage)} damage and ${r(e.orgDamage)} organisation.${screened}`;
     }
     case 'bounce':

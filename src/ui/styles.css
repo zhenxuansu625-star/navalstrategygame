@@ -99,3 +99,66 @@ th { color: var(--muted); font-weight: 500; font-size: 12px; }
 td { font-variant-numeric: tabular-nums; }
 tr.side-0 td:first-child { border-left: 3px solid var(--blue); }
 tr.side-1 td:first-child { border-left: 3px solid var(--red); }
+
+/* ---------- Panels shared by designer and fleet editor ---------- */
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+.problems { color: var(--danger); margin: 8px 0 0; padding-left: 18px; font-size: 13px; }
+.notice { background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+.footnote { font-size: 12px; margin: 4px 0 12px; }
+.better { color: var(--hp); }
+.worse { color: var(--danger); }
+.delta { font-size: 11px; }
+
+/* ---------- Designer ---------- */
+.designer { display: grid; grid-template-columns: 230px minmax(0, 1fr) 400px; gap: 12px; align-items: start; }
+@media (max-width: 1200px) { .designer { grid-template-columns: 220px minmax(0, 1fr); } .designer .stats { grid-column: 1 / -1; } }
+@media (max-width: 760px) { .designer { grid-template-columns: 1fr; } }
+.design-list { display: flex; flex-direction: column; gap: 4px; max-height: calc(100vh - 100px); overflow-y: auto; position: sticky; top: 8px; }
+.design-list h3 { margin-top: 10px; }
+.new-design { display: flex; flex-direction: column; gap: 6px; }
+.new-design select { width: 100%; }
+.design-item { display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 1px; background: transparent; border-color: transparent; }
+.design-item.selected { background: var(--panel-2); border-color: var(--blue); }
+.design-item-name { font-weight: 600; }
+.invalid-dot { color: var(--danger); }
+
+.editor-head { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.editor-head label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); }
+.editor-head label:last-child { grid-column: 1 / -1; }
+.hull-summary { font-size: 12px; margin: 8px 0 4px; }
+.slot-group { margin-top: 12px; }
+.slot { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 2px 10px; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--border); }
+.slot.has-issue select { border-color: var(--danger); }
+.slot-label { display: flex; flex-direction: column; font-weight: 500; }
+.slot-accepts { font-size: 11px; font-weight: 400; }
+.required { color: var(--org); margin-left: 3px; }
+.slot select { width: 100%; }
+.slot-detail { grid-column: 2; font-size: 12px; }
+.slot.has-issue .slot-detail { color: var(--danger); }
+.editor-actions { display: flex; gap: 8px; align-items: center; margin-top: 14px; }
+@media (max-width: 560px) { .slot { grid-template-columns: 1fr; } .slot-detail { grid-column: 1; } .editor-head { grid-template-columns: 1fr; } }
+
+.stats-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
+.stats-head h2 { margin: 0; }
+.stats-head select { max-width: 200px; }
+.stat-table { margin-bottom: 4px; }
+.stat-table td, .stat-table th { padding: 3px 6px; }
+.stat-table tr.inactive td:first-child { color: var(--muted); }
+.stats h2 { margin-top: 14px; }
+.pierce-table td:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+
+/* ---------- Fleet editor ---------- */
+.fleet-editor { margin-bottom: 14px; }
+.fleet-editor-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
+.fleet-editor-head h2 { margin: 0; }
+.fleet-editor-head button { margin-left: auto; }
+.side-head { display: flex; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+.side-name { font-weight: 600; flex: 1; min-width: 120px; }
+.fleet-row { display: grid; grid-template-columns: minmax(0, 1fr) 70px auto; gap: 6px; margin-bottom: 4px; }
+.fleet-row input { width: 100%; }
+.stats { min-width: 0; overflow-x: auto; }
+.pierce-table { font-size: 12px; }
+.pierce-table td, .pierce-table th { padding: 3px 4px; }
+.pierce-table td:first-child { max-width: 120px; }
+.pierce-table th { white-space: nowrap; }
+.app { overflow-x: hidden; }
