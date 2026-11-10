@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PRESET_DESIGNS } from '../src/data/designs';
 import { DEFAULT_FLEETS } from '../src/data/scenarios';
 import { PRODUCTION } from '../src/data/production';
+import { BATTLE_CONFIG } from '../src/data/battle';
 import {
   buildBattleSetup,
   changeHull,
@@ -254,7 +255,8 @@ describe('designs in battle', () => {
           ship.stats.torpedoAttack = 0;
           if (lightPiercing !== undefined) ship.stats.lightPiercing = lightPiercing;
         }
-        const end = runBattle(createBattle(setup), createRng(seed));
+        // Compare the same 24-hour window, since the battle itself runs until one side is gone.
+        const end = runBattle(createBattle(setup), createRng(seed), { ...BATTLE_CONFIG, maxHours: 24 });
         const bb = end.ships.find((x) => x.side === 1)!;
         lost += bb.stats.hp - bb.hp;
       }

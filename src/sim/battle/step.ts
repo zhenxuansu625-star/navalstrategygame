@@ -231,30 +231,33 @@ function fastestActiveSpeed(ships: ShipState[], side: SideIndex): number | null 
   return best;
 }
 
+/**
+ * The battle continues until a fleet has no ships left in it: every ship sunk
+ * (destroyed) or escaped (withdrawn). Ships that are retreating are still in
+ * the battle and can be caught. The only other ending is the stalemate safety
+ * limit for fleets that cannot hurt each other.
+ */
 function checkEnd(state: BattleState, cfg: BattleConfig): BattleState['result'] {
-  const count = (side: SideIndex, pred: (s: ShipState) => boolean) =>
-    state.ships.filter((s) => s.side === side && pred(s)).length;
-  const active = [count(0, (s) => s.status === 'active'), count(1, (s) => s.status === 'active')] as const;
-  const present = [count(0, isPresent), count(1, isPresent)] as const;
+  const ofSide = (side: SideIndex) => state.ships.filter((s) => s.side === side);
+  const present = [ofSide(0).filter(isPresent).length, ofSide(1).filter(isPresent).length] as const;
   const hours = state.hour;
   const name = (i: SideIndex) => state.sides[i].name;
 
+  const howLost = (side: SideIndex) => {
+    const ships = ofSide(side);
+    const sunk = ships.filter((s) => s.status === 'sunk').length;
+    if (sunk === ships.length) return `${name(side)} was destroyed.`;
+    return `${name(side)} has withdrawn from the battle (${ships.length - sunk} escaped, ${sunk} sunk).`;
+  };
+
   if (present[0] === 0 && present[1] === 0) {
-    return { winner: 'draw', hours, reason: 'Neither fleet has a ship left in the battle.' };
+    return { winner: 'draw', hours, reason: 'Both fleets left the battle in the same hour.' };
   }
   for (const side of [0, 1] as const) {
-    // A beaten side stays in the battle until its retreating ships escape or sink.
-    if (present[side] === 0) {
-      return { winner: other(side), hours, reason: `${name(side)} has no ships left in the battle.` };
-    }
-  }
-  if (active[0] === 0 && active[1] === 0) {
-    return { winner: 'draw', hours, reason: 'Both fleets broke off.' };
+    if (present[side] === 0) return { winner: other(side), hours, reason: howLost(side) };
   }
   if (hours >= cfg.maxHours) {
-    if (active[0] > 0 && active[1] === 0) return { winner: 0, hours, reason: `${name(1)} is in full retreat.` };
-    if (active[1] > 0 && active[0] === 0) return { winner: 1, hours, reason: `${name(0)} is in full retreat.` };
-    return { winner: 'draw', hours, reason: 'Night falls; the battle is inconclusive.' };
+    return { winner: 'draw', hours, reason: `Stalemate after ${hours} hours: neither fleet could finish the other.` };
   }
   return undefined;
 }

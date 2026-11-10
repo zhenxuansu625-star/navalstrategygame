@@ -15,6 +15,7 @@ export interface SimulationReport {
   wins: [number, number];
   draws: number;
   avgHours: number;
+  maxHours: number;
   avgSunk: [number, number];
   avgEscaped: [number, number];
 }
@@ -23,6 +24,7 @@ export function simulate(setup: BattleSetup, runs: number, firstSeed = 1): Simul
   const wins: [number, number] = [0, 0];
   let draws = 0;
   let hours = 0;
+  let maxHours = 0;
   const sunk: [number, number] = [0, 0];
   const escaped: [number, number] = [0, 0];
   for (let i = 0; i < runs; i++) {
@@ -31,6 +33,7 @@ export function simulate(setup: BattleSetup, runs: number, firstSeed = 1): Simul
     if (winner === 'draw') draws++;
     else wins[winner]++;
     hours += end.result!.hours;
+    maxHours = Math.max(maxHours, end.result!.hours);
     for (const s of end.ships) {
       if (s.status === 'sunk') sunk[s.side]++;
       if (s.status === 'escaped') escaped[s.side]++;
@@ -41,6 +44,7 @@ export function simulate(setup: BattleSetup, runs: number, firstSeed = 1): Simul
     wins,
     draws,
     avgHours: hours / runs,
+    maxHours,
     avgSunk: [sunk[0] / runs, sunk[1] / runs],
     avgEscaped: [escaped[0] / runs, escaped[1] / runs],
   };
@@ -57,7 +61,7 @@ function main() {
   console.log(`  ${a.name} wins: ${pct(r.wins[0])}`);
   console.log(`  ${b.name} wins: ${pct(r.wins[1])}`);
   console.log(`  Draws:          ${pct(r.draws)}`);
-  console.log(`  Avg length:     ${r.avgHours.toFixed(1)} h`);
+  console.log(`  Avg length:     ${r.avgHours.toFixed(1)} h (longest ${r.maxHours} h)`);
   console.log(`  Avg sunk:       ${a.name} ${r.avgSunk[0].toFixed(2)}, ${b.name} ${r.avgSunk[1].toFixed(2)}`);
   console.log(`  Avg escaped:    ${a.name} ${r.avgEscaped[0].toFixed(2)}, ${b.name} ${r.avgEscaped[1].toFixed(2)}`);
 }

@@ -87,7 +87,6 @@ export function BattleView({ setup }: { setup: BattleSetup }) {
             ) : (
               <div className="clock-hour">
                 Hour <span>{battle.hour}</span>
-                <span className="muted"> / {BATTLE_CONFIG.maxHours}</span>
               </div>
             )}
             <div className="battle-controls">
