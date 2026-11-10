@@ -151,11 +151,11 @@ describe('carrier and dreadnought designs', () => {
     expect(fleet.airWing).toBe(80); // 4 x Hangar III
     expect(fleet.aa).toBeGreaterThan(0);
     expect(fleet.heavyAttack).toBe(0);
-    expect(deriveStats(DEFAULT_CATALOG, preset('preset_cv_1940')).airWing).toBe(32);
+    expect(deriveStats(DEFAULT_CATALOG, preset('preset_cv_1924')).airWing).toBe(24);
   });
 
   it('dreadnought presets are all-big-gun capital ships', () => {
-    for (const id of ['preset_bb_1906', 'preset_bb_1914', 'preset_bc_1908']) {
+    for (const id of ['preset_bb_1906', 'preset_bb_1925', 'preset_bc_1908']) {
       const s = deriveStats(DEFAULT_CATALOG, preset(id));
       expect(s.line).toBe('capital');
       expect(s.heavyAttack).toBeGreaterThanOrEqual(33);

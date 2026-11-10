@@ -37,7 +37,7 @@ const config: EconomyConfig = {
   consumerGoodsShare: 0.25,
   trade: { perFactory: { steel: 10, chromium: 4 } },
   production: {
-    maxDockyardsPerLine: { screen: 10, capital: 5, carrier: 5 },
+    maxDockyardsPerLine: { screen: 10, capital: 5, carrier: 5, submarine: 10 },
     efficiency: { base: 0.5, max: 1, gainPerMonth: 0.1, retainSameHull: 0.8, retainSameClass: 0.6 },
     resourceShortfallPenalty: 0.6,
   },
@@ -263,7 +263,7 @@ describe('production lines', () => {
     const ctx = world();
     let s = ok(ctx, newGame(ctx), { type: 'addLine', design: DD, dockyards: 10, quantity: 3 });
     s = month(ctx, s, 8);
-    expect(s.nations.a!.fleet[2]!.name).toBe('Destroyer 1915 3');
+    expect(s.nations.a!.fleet[2]!.name).toBe('Early Destroyer 3');
   });
 
   it('adding dockyards dilutes efficiency; retooling keeps part of it', () => {
@@ -348,7 +348,7 @@ describe('starting position', () => {
       'preset_bb_1906', 'preset_bb_1906', 'preset_dd_1895', 'preset_dd_1895', 'preset_dd_1895',
     ]);
     const late = newGame(ctx, 1936).nations.a!;
-    expect(late.fleet.some((x) => x.design.id === 'preset_cv_1940')).toBe(true);
+    expect(late.fleet.some((x) => x.design.id === 'preset_cv_1924')).toBe(true);
     expect(late.fleet.some((x) => x.design.id === 'preset_dd_1936')).toBe(true);
   });
 
@@ -458,7 +458,7 @@ describe('AI and fleets', () => {
     expect(setup.sides[0].name).toBe('Alandic Navy');
     expect(setup.sides[0].aggressiveness).toBe('highRisk');
     expect(setup.sides[0].ships).toHaveLength(6);
-    expect(setup.sides[0].ships[0]).toMatchObject({ className: 'Super-dreadnought 1914', hullClass: 'battleship' });
+    expect(setup.sides[0].ships[0]).toMatchObject({ className: 'Early Battleship', hullClass: 'battleship' });
     expect(setup.sides[1].ships).toHaveLength(0);
     expect(designCost(ctx.catalog, BB).production).toBe(10380);
   });

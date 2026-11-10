@@ -89,6 +89,12 @@ const GLYPHS: Record<ModuleCategory | 'empty', () => React.ReactNode> = {
     </>
   ),
   hangar: () => <PlaneGlyph />,
+  subSystem: () => (
+    <>
+      <path d="M3 15c0-2 2-3 4-3h10c2 0 4 1 4 3s-2 3-4 3H7c-2 0-4-1-4-3z" {...S} />
+      <path d="M11 12V8h3v4M12.5 8V4" {...S} />
+    </>
+  ),
   empty: () => <path d="M12 7v10M7 12h10" {...S} strokeOpacity={0.6} />,
 };
 

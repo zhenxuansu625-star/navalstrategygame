@@ -5,6 +5,7 @@ const WEAPON: Record<AttackType, string> = {
   light: 'light guns',
   heavy: 'heavy guns',
   torpedo: 'torpedoes',
+  asw: 'depth charges',
 };
 
 const r = (n: number) => Math.round(n);
@@ -30,6 +31,10 @@ export function formatLogEvent(state: Pick<BattleState, 'sides'>, e: LogEvent): 
       return `${e.ship} (${side(e.side)}) sinks! Finished off by ${e.by}.`;
     case 'retreat':
       return `${e.ship} (${side(e.side)}) breaks off: ${e.reason === 'hp' ? 'heavy damage' : 'crew organisation collapsing'} (HP ${e.hpPct}%, org ${e.orgPct}%).`;
+    case 'revealed':
+      return e.afterFiring
+        ? `${e.ship} (${side(e.side)}) gives away her position with a torpedo attack and is located.`
+        : `${e.ship} (${side(e.side)}) is detected by enemy sonar.`;
     case 'escaped':
       return `${e.ship} (${side(e.side)}) escapes the battle.`;
     case 'end':

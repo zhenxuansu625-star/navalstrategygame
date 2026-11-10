@@ -15,6 +15,7 @@ const CRUISERS: HullClass[] = ['heavyCruiser', 'battlecruiser'];
 /** Cruiser machinery also drives carriers. */
 const CRUISER_ENGINES: HullClass[] = [...CRUISERS, 'carrier'];
 const BATTLESHIPS: HullClass[] = ['battleship', 'superHeavy'];
+const SUBMARINES: HullClass[] = ['submarine'];
 
 export const MODULES: Module[] = [
   ...cat('fireControl', [
@@ -33,6 +34,9 @@ export const MODULES: Module[] = [
     ['eng_bb1', 'Battleship engine I', 1890, { speed: 3 }, 500, 2, 0, BATTLESHIPS],
     ['eng_bb2', 'Battleship engine II', 1910, { speed: 5 }, 750, 2, 0, BATTLESHIPS],
     ['eng_bb3', 'Battleship engine III', 1930, { speed: 8 }, 1000, 2, 2, BATTLESHIPS],
+    ['eng_sub1', 'Submarine diesel I', 1900, { speed: 2 }, 120, 0, 0, SUBMARINES],
+    ['eng_sub2', 'Submarine diesel II', 1920, { speed: 4 }, 180, 0, 0, SUBMARINES],
+    ['eng_sub3', 'Submarine diesel III', 1936, { speed: 5 }, 240, 0, 1, SUBMARINES],
   ]),
   ...cat('armour', [
     ['arm_lc1', 'Light cruiser belt I', 1890, { armour: 3, hp: 5, speed: -1 }, 150, 1, 0, ['lightCruiser']],
@@ -91,8 +95,8 @@ export const MODULES: Module[] = [
     ['aa3', 'AA guns III', 1940, { aa: 6 }, 140, 0, 1],
   ]),
   ...cat('asw', [
-    ['dc1', 'Depth charges I', 1915, { subDetection: 1 }, 50, 0, 0],
-    ['dc2', 'Depth charges II', 1935, { subDetection: 2 }, 90, 0, 0],
+    ['dc1', 'Depth charges I', 1915, { subDetection: 1, aswAttack: 4 }, 50, 0, 0],
+    ['dc2', 'Depth charges II', 1935, { subDetection: 2, aswAttack: 8 }, 90, 0, 0],
   ]),
   ...cat('sensor', [
     ['sonar1', 'Sonar I', 1918, { subDetection: 4 }, 120, 0, 0],
@@ -104,6 +108,11 @@ export const MODULES: Module[] = [
     ['hangar1', 'Hangar I', 1922, { airWing: 12, visibility: 1 }, 600, 2, 0, ['carrier']],
     ['hangar2', 'Hangar II', 1932, { airWing: 16, visibility: 1 }, 800, 2, 0, ['carrier']],
     ['hangar3', 'Hangar III', 1940, { airWing: 20, visibility: 1 }, 1000, 2, 1, ['carrier']],
+  ]),
+  ...cat('subSystem', [
+    ['sub_reload', 'Torpedo reloads', 1915, { torpedoAttack: 3 }, 120, 0, 0, SUBMARINES],
+    ['snorkel', 'Snorkel', 1938, { visibility: -1, speed: 1 }, 200, 0, 0, SUBMARINES],
+    ['anechoic', 'Anechoic tiles', 1942, { visibility: -2 }, 260, 0, 1, SUBMARINES],
   ]),
   ...cat('extraArmour', [
     ['xarm', 'Extra armour plating', 1890, { armour: 2, hp: 10, speed: -1 }, 200, 2, 0],
@@ -126,4 +135,5 @@ export const MODULE_CATEGORY_NAMES: Record<ModuleCategory, string> = {
   sensor: 'Sensors',
   extraArmour: 'Extra armour',
   hangar: 'Hangar',
+  subSystem: 'Submarine system',
 };

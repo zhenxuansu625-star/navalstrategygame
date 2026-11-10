@@ -67,7 +67,7 @@ export const ECONOMY: EconomyConfig = {
     perFactory: { steel: 10, chromium: 4 },
   },
   production: {
-    maxDockyardsPerLine: { screen: 10, capital: 5, carrier: 5 },
+    maxDockyardsPerLine: { screen: 10, capital: 5, carrier: 5, submarine: 10 },
     efficiency: {
       base: 0.5,
       max: 1,

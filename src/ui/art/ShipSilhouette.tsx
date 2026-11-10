@@ -9,7 +9,8 @@ export type SilhouetteKind =
   | 'battlecruiser'
   | 'battleship'
   | 'superHeavy'
-  | 'carrier';
+  | 'carrier'
+  | 'submarine';
 
 interface Profile {
   /** Hull length in viewBox units (box is 200 wide). */
@@ -53,6 +54,12 @@ const PROFILES: Record<SilhouetteKind, Profile> = {
     turrets: [],
     funnels: [0.6], bridge: { at: 0.64, height: 12, width: 0.07 },
   },
+  submarine: {
+    // Drawn separately: a low hull with a conning tower.
+    length: 120, freeboard: 3,
+    turrets: [],
+    funnels: [0.5], bridge: { at: 0.55, height: 8, width: 0.1 },
+  },
   superHeavy: {
     length: 194, freeboard: 10,
     turrets: [{ at: 0.84, size: 14, barrels: 3 }, { at: 0.73, size: 14, barrels: 3, raised: true }, { at: 0.17, size: 14, barrels: 3 }],
@@ -83,6 +90,7 @@ export function ShipSilhouette({
   title?: string;
 }) {
   if (kind === 'carrier') return <CarrierSilhouette flip={flip} className={className} title={title} />;
+  if (kind === 'submarine') return <SubmarineSilhouette flip={flip} className={className} title={title} />;
   const { p, x0, x1, deck, x } = silhouetteGeometry(kind);
   const bowRise = p.freeboard * 0.5;
   const hull = `M ${x0 + 3} ${WATERLINE + 3} L ${x0} ${deck} L ${x1 - 14} ${deck} L ${x1} ${deck - bowRise} L ${x1 - 7} ${WATERLINE + 3} Z`;
@@ -148,9 +156,10 @@ export function ShipSilhouette({
   );
 }
 
-export function silhouetteFor(hullClass: string | undefined, line: 'screen' | 'capital' | 'carrier'): SilhouetteKind {
+export function silhouetteFor(hullClass: string | undefined, line: 'screen' | 'capital' | 'carrier' | 'submarine'): SilhouetteKind {
   if (hullClass && hullClass in PROFILES) return hullClass as SilhouetteKind;
-  return line === 'screen' ? 'destroyer' : line === 'carrier' ? 'carrier' : 'battleship';
+  if (line === 'submarine' || line === 'carrier') return line;
+  return line === 'screen' ? 'destroyer' : 'battleship';
 }
 
 /** Flat-top: high hull, overhanging flight deck, island to starboard and a few parked aircraft. */
@@ -178,6 +187,27 @@ function CarrierSilhouette({ flip, className, title }: { flip: boolean; classNam
         {planes.map((f, i) => (
           <path key={i} d={`M ${x(f) - 3} ${flightDeck - 2} L ${x(f) + 3} ${flightDeck - 2} M ${x(f) - 1} ${flightDeck - 2} L ${x(f) + 1} ${flightDeck - 4}`} className="sil-mast" />
         ))}
+      </g>
+    </svg>
+  );
+}
+
+/** A submarine running on the surface: long low hull, conning tower, deck gun and periscope. */
+function SubmarineSilhouette({ flip, className, title }: { flip: boolean; className?: string; title?: string }) {
+  const { x0, x1, deck, x } = silhouetteGeometry('submarine');
+  const hull = `M ${x0} ${deck + 1} Q ${x0 + 6} ${WATERLINE + 3} ${x0 + 20} ${WATERLINE + 3} L ${x1 - 16} ${WATERLINE + 3} Q ${x1} ${WATERLINE + 2} ${x1} ${deck + 1} Z`;
+  const tower = x(0.52);
+  return (
+    <svg viewBox="0 0 200 52" className={className} role="img" aria-label={title ?? 'submarine'} preserveAspectRatio="xMidYMax meet">
+      {title && <title>{title}</title>}
+      <g transform={flip ? 'translate(200 0) scale(-1 1)' : undefined}>
+        <path d={`M 2 ${WATERLINE + 0.5} H 198`} className="sil-water" />
+        <path d={hull} className="sil-hull" />
+        <path d={`M ${tower - 7} ${deck + 1} L ${tower - 5} ${deck - 7} L ${tower + 7} ${deck - 7} L ${tower + 9} ${deck + 1} Z`} className="sil-body" />
+        <line x1={tower + 2} y1={deck - 7} x2={tower + 2} y2={deck - 15} className="sil-mast" />
+        <line x1={tower - 2} y1={deck - 7} x2={tower - 2} y2={deck - 12} className="sil-mast" />
+        <line x1={x(0.72)} y1={deck - 1} x2={x(0.8)} y2={deck - 3} className="sil-barrel" />
+        <rect x={x(0.7) - 2} y={deck - 2} width={4} height={3} className="sil-body" />
       </g>
     </svg>
   );

@@ -84,16 +84,40 @@ describe('battle engine', () => {
     expect(fled?.reason).toBe('Prey has withdrawn from the battle (1 escaped, 0 sunk).');
   });
 
-  it('stops a true stalemate at the safety limit as a draw', () => {
+  it('fleets that cannot fire at each other lose contact', () => {
     const harmless = (n: string): [string, ShipStats] => [n, stats()]; // no weapons at all
     const end = runBattle(
       createBattle({ sides: [side('A', [harmless('a')], 'alwaysEngage'), side('B', [harmless('b')], 'alwaysEngage')] }),
       createRng(1),
-      { ...cfg, maxHours: 50 },
+      cfg,
     );
-    expect(end.hour).toBe(50);
+    expect(end.hour).toBe(cfg.submarines.quietHoursLimit);
+    expect(end.result).toMatchObject({ winner: 'draw' });
+    expect(end.result!.reason).toContain('lost contact');
+  });
+
+  it('stops a true stalemate at the safety limit as a draw', () => {
+    // Both sides fire, but their ships are far too tough to sink in time.
+    const tough = (n: string): [string, ShipStats] => [n, stats({ hp: 1e9, org: 1e9, lightAttack: 1, lightPiercing: 0, armour: 50 })];
+    const end = runBattle(
+      createBattle({ sides: [side('A', [tough('a')], 'alwaysEngage'), side('B', [tough('b')], 'alwaysEngage')] }),
+      createRng(1),
+      { ...cfg, maxHours: 30 },
+    );
+    expect(end.hour).toBe(30);
     expect(end.result).toMatchObject({ winner: 'draw' });
     expect(end.result!.reason).toContain('Stalemate');
+  });
+
+  it('ships can start a battle already damaged and keep their campaign id', () => {
+    const s0 = createBattle({
+      sides: [
+        { name: 'A', aggressiveness: 'alwaysEngage', ships: [{ name: 'a', className: 'x', refId: 's7', hp: 40, org: 10, stats: stats({ hp: 100, org: 50 }) }] },
+        { name: 'B', aggressiveness: 'alwaysEngage', ships: [{ name: 'b', className: 'x', hp: 999, stats: stats({ hp: 100 }) }] },
+      ],
+    });
+    expect(s0.ships[0]).toMatchObject({ hp: 40, org: 10, refId: 's7' });
+    expect(s0.ships[1]!.hp).toBe(100); // never above the maximum
   });
 
   it('state survives a JSON round-trip and continues identically', () => {

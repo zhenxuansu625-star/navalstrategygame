@@ -1,5 +1,6 @@
 /** Turn fleets of designs into a battle setup. */
 import type { AggressivenessId } from '../../data/battle';
+import { RETIRED_PRESETS } from '../../data/designs';
 import type { BattleSetup, ShipSetup, SideSetup } from '../battle/types';
 import type { Catalog } from './catalog';
 import { deriveStats } from './stats';
@@ -33,7 +34,7 @@ function buildSide(
   const ships: ShipSetup[] = [];
   const perDesign = new Map<string, number>();
   for (const entry of fleet.ships) {
-    const design = designs.get(entry.designId);
+    const design = designs.get(entry.designId) ?? designs.get(RETIRED_PRESETS[entry.designId] ?? '');
     if (!design) {
       problems.push(`${fleet.name}: unknown design "${entry.designId}" skipped.`);
       continue;

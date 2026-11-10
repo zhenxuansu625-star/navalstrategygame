@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { PRESET_DESIGNS } from '../src/data/designs';
+import { PRESET_DESIGNS, RETIRED_PRESETS } from '../src/data/designs';
+import { eraOf } from '../src/data/eras';
 import { DEFAULT_FLEETS } from '../src/data/scenarios';
 import { PRODUCTION } from '../src/data/production';
 import { BATTLE_CONFIG } from '../src/data/battle';
@@ -10,6 +11,7 @@ import {
   DEFAULT_CATALOG,
   deriveStats,
   designCost,
+  designYear,
   isValidDesign,
   makeCatalog,
   modulesForSlot,
@@ -175,14 +177,14 @@ describe('creating and editing designs', () => {
 
   it('changeHull keeps modules that still fit and drops the rest', () => {
     const bb = DEFAULT_CATALOG;
-    const preset = PRESET_DESIGNS.find((p) => p.id === 'preset_bb_1915')!;
+    const preset = PRESET_DESIGNS.find((p) => p.id === 'preset_bb_1906')!;
     const moved = changeHull(bb, preset, 'bb4');
-    expect(moved.slots.mainFront).toBe('hb3');
+    expect(moved.slots.mainFront).toBe('hb2');
     expect(moved.slots.armour).toBe('arm_bb2');
     expect(validateDesign(bb, moved)).toEqual([]);
 
     const toCruiser = changeHull(bb, preset, 'ca2');
-    expect(toCruiser.slots.mainFront).not.toBe('hb3'); // heavy guns do not fit a cruiser
+    expect(toCruiser.slots.mainFront).not.toBe('hb2'); // heavy guns do not fit a cruiser
     expect(validateDesign(bb, toCruiser)).toEqual([]);
   });
 
@@ -205,7 +207,7 @@ describe('preset designs', () => {
 
   it('show the intended armour and piercing relationships', () => {
     const s = (id: string) => deriveStats(DEFAULT_CATALOG, PRESET_DESIGNS.find((p) => p.id === id)!);
-    const bb = s('preset_bb_1915');
+    const bb = s('preset_bb_1906');
     const cl = s('preset_cl_1915');
     const dd = s('preset_dd_1915');
     expect(cl.lightPiercing).toBeLessThan(bb.armour); // cruiser guns bounce off battleships
@@ -216,15 +218,45 @@ describe('preset designs', () => {
   });
 });
 
+describe('era names', () => {
+  it('every preset is named after the era of its newest technology', () => {
+    for (const d of PRESET_DESIGNS) {
+      const era = eraOf(designYear(DEFAULT_CATALOG, d));
+      expect(d.name.startsWith(`${era.tier} `), `${d.name} (${designYear(DEFAULT_CATALOG, d)})`).toBe(true);
+    }
+  });
+
+  it('there is at most one preset per hull class and era', () => {
+    const seen = new Set<string>();
+    for (const d of PRESET_DESIGNS) {
+      const key = `${DEFAULT_CATALOG.hulls.get(d.hullId)!.hullClass}|${eraOf(designYear(DEFAULT_CATALOG, d)).id}`;
+      expect(seen.has(key), key).toBe(false);
+      seen.add(key);
+    }
+  });
+
+  it('retired preset ids still resolve in saved fleets', () => {
+    for (const [oldId, newId] of Object.entries(RETIRED_PRESETS)) {
+      expect(PRESET_DESIGNS.some((d) => d.id === oldId)).toBe(false);
+      const { setup, problems } = buildBattleSetup(DEFAULT_CATALOG, PRESET_DESIGNS, [
+        { name: 'A', aggressiveness: 'mediumRisk', ships: [{ designId: oldId, count: 1 }] },
+        { name: 'B', aggressiveness: 'mediumRisk', ships: [] },
+      ]);
+      expect(problems).toEqual([]);
+      expect(setup.sides[0].ships[0]!.className).toBe(PRESET_DESIGNS.find((d) => d.id === newId)!.name);
+    }
+  });
+});
+
 describe('designs in battle', () => {
   it('builds fleets from designs with the derived stats', () => {
     const { setup, problems } = buildBattleSetup(DEFAULT_CATALOG, PRESET_DESIGNS, DEFAULT_FLEETS, [['A', 'B'], []]);
     expect(problems).toEqual([]);
     expect(setup.sides[0].ships).toHaveLength(11);
-    expect(setup.sides[1].ships).toHaveLength(10);
+    expect(setup.sides[1].ships).toHaveLength(11);
     expect(setup.sides[0].ships[0]!.name).toBe('A');
-    expect(setup.sides[0].ships[2]!.name).toBe('Heavy cruiser 1915 1'); // names ran out
-    const bb = PRESET_DESIGNS.find((p) => p.id === 'preset_bb_1915')!;
+    expect(setup.sides[0].ships[2]!.name).toBe('Early Heavy Cruiser 1'); // names ran out
+    const bb = PRESET_DESIGNS.find((p) => p.id === 'preset_bb_1906')!;
     expect(setup.sides[0].ships[0]!.stats).toEqual(deriveStats(DEFAULT_CATALOG, bb));
     expect(setup.sides[0].ships[0]!.hullClass).toBe('battleship');
     expect(createBattle(setup).ships[0]!.hullClass).toBe('battleship');
@@ -248,7 +280,7 @@ describe('designs in battle', () => {
       for (let seed = 1; seed <= 30; seed++) {
         const { setup } = buildBattleSetup(DEFAULT_CATALOG, PRESET_DESIGNS, [
           { name: 'Cruisers', aggressiveness: 'alwaysEngage', ships: [{ designId: 'preset_cl_1915', count: 3 }] },
-          { name: 'Battleship', aggressiveness: 'alwaysEngage', ships: [{ designId: 'preset_bb_1915', count: 1 }] },
+          { name: 'Battleship', aggressiveness: 'alwaysEngage', ships: [{ designId: 'preset_bb_1906', count: 1 }] },
         ]);
         // Remove the cruisers' torpedoes so only their guns count.
         for (const ship of setup.sides[0].ships) {

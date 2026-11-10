@@ -50,6 +50,20 @@ function carrierSlots(hangars: number, secondary: number, custom: number): SlotD
   return out;
 }
 
+/** Submarines: engine, bow and stern tubes, a deck gun and systems such as snorkels. */
+function submarineSlots(systems: number): SlotDef[] {
+  const out: SlotDef[] = [
+    { id: 'engine', label: 'Engine', group: 'fixed', accepts: ['engine'], required: true },
+    { id: 'mainFront', label: 'Bow tubes', group: 'main', accepts: ['torpedo'], required: true },
+    { id: 'mainRear', label: 'Stern tubes', group: 'main', accepts: ['torpedo'], required: false },
+    { id: 'secondary1', label: 'Deck gun', group: 'secondary', accepts: ['secondary'], required: false },
+  ];
+  for (let i = 1; i <= systems; i++) {
+    out.push({ id: `custom${i}`, label: `System ${i}`, group: 'custom', accepts: ['subSystem', 'sensor', 'aa'], required: false });
+  }
+  return out;
+}
+
 type HullRow = [id: string, name: string, year: number, hp: number, armour: number, visibility: number, speed: number, production: number, steel: number, chromium: number, slots: SlotDef[]];
 
 function hulls(hullClass: HullClass, line: Hull['line'], org: number, rows: HullRow[]): Hull[] {
@@ -106,10 +120,24 @@ export const HULLS: Hull[] = [
     ['cv2', 'Carrier II', 1932, 190, 5, 36, 26, 7000, 9, 0, carrierSlots(3, 2, 3)],
     ['cv3', 'Carrier III', 1940, 230, 6, 38, 27, 8200, 10, 1, carrierSlots(4, 3, 3)],
   ]),
+  ...hulls('submarine', 'submarine', 30, [
+    ['sub1', 'Submarine I', 1900, 12, 0, 8, 9, 700, 1, 0, submarineSlots(1)],
+    ['sub2', 'Submarine II', 1912, 15, 0, 7, 11, 850, 1, 0, submarineSlots(1)],
+    ['sub3', 'Submarine III', 1922, 18, 0, 6, 12, 1000, 2, 0, submarineSlots(2)],
+    ['sub4', 'Submarine IV', 1936, 22, 0, 5, 13, 1200, 2, 0, submarineSlots(2)],
+    ['sub5', 'Submarine V', 1942, 26, 0, 4, 15, 1500, 3, 1, submarineSlots(3)],
+  ]),
   ...hulls('superHeavy', 'capital', 40, [
     ['sh1', 'Super-heavy Battleship', 1940, 340, 12, 38, 19, 11000, 20, 2, capital(3, 3, ['heavyBattery', 'superHeavyBattery'], ['heavyBattery', 'superHeavyBattery'])],
   ]),
 ];
+
+/** Escorts carry some anti-submarine capability on every hull (guns, lookouts, ramming). */
+const BUILT_IN_ASW: Partial<Record<HullClass, { aswAttack: number; subDetection: number }>> = {
+  destroyer: { aswAttack: 2, subDetection: 1 },
+  lightCruiser: { aswAttack: 1, subDetection: 1 },
+};
+for (const hull of HULLS) Object.assign(hull, BUILT_IN_ASW[hull.hullClass] ?? {});
 
 export const HULL_CLASS_NAMES: Record<HullClass, string> = {
   destroyer: 'Destroyer',
@@ -119,4 +147,5 @@ export const HULL_CLASS_NAMES: Record<HullClass, string> = {
   battleship: 'Battleship',
   superHeavy: 'Super-heavy battleship',
   carrier: 'Aircraft carrier',
+  submarine: 'Submarine',
 };

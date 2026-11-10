@@ -7,7 +7,8 @@ export type HullClass =
   | 'battlecruiser'
   | 'battleship'
   | 'superHeavy'
-  | 'carrier';
+  | 'carrier'
+  | 'submarine';
 
 export type ModuleCategory =
   | 'fireControl'
@@ -24,7 +25,8 @@ export type ModuleCategory =
   | 'asw'
   | 'sensor'
   | 'extraArmour'
-  | 'hangar';
+  | 'hangar'
+  | 'subSystem';
 
 export type SlotGroup = 'fixed' | 'main' | 'deck' | 'secondary' | 'custom';
 
@@ -57,6 +59,9 @@ export interface Hull {
   speed: number;
   cost: Cost;
   slots: SlotDef[];
+  /** Built-in anti-submarine attack and detection (destroyers' guns and lookouts). */
+  aswAttack?: number;
+  subDetection?: number;
 }
 
 /** Stats a module adds to a design. Piercing values combine by maximum, everything else adds. */
@@ -76,6 +81,7 @@ export interface ModuleStats {
   surfaceDetection: number;
   subDetection: number;
   airWing: number;
+  aswAttack: number;
 }
 
 export interface Module {
@@ -101,5 +107,4 @@ export interface Design {
 /** Battle stats plus stats that are shown in the designer but not used in battle yet. */
 export interface DesignStats extends ShipStats {
   surfaceDetection: number;
-  subDetection: number;
 }
