@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SCENARIO } from '../src/data/scenarios';
+import { defaultBattleSetup } from '../src/sim/scenario';
 import { createBattle, formatLogEvent, runBattle, step } from '../src/sim/battle';
 import type { BattleSetup, BattleState, ShipStats, SideSetup } from '../src/sim/battle';
 import { createRng, rngFromState } from '../src/sim/rng';
@@ -10,6 +10,8 @@ function side(name: string, ships: Array<[string, ShipStats]>, aggressiveness: S
 }
 
 const gunship = (o: Partial<ShipStats> = {}) => stats({ heavyAttack: 20, heavyPiercing: 20, ...o });
+
+const DEFAULT_SCENARIO = defaultBattleSetup();
 
 describe('battle engine', () => {
   it('is deterministic for a given seed', () => {

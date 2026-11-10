@@ -5,10 +5,10 @@
  *
  * Usage: npm run simulate [-- --runs 1000]
  */
-import { DEFAULT_SCENARIO } from '../src/data/scenarios';
 import { createBattle, runBattle } from '../src/sim/battle';
 import type { BattleSetup } from '../src/sim/battle';
 import { createRng } from '../src/sim/rng';
+import { defaultBattleSetup } from '../src/sim/scenario';
 
 export interface SimulationReport {
   runs: number;
@@ -49,7 +49,7 @@ export function simulate(setup: BattleSetup, runs: number, firstSeed = 1): Simul
 function main() {
   const idx = process.argv.indexOf('--runs');
   const runs = idx >= 0 ? Number(process.argv[idx + 1]) : 1000;
-  const setup = DEFAULT_SCENARIO;
+  const setup = defaultBattleSetup();
   const r = simulate(setup, runs);
   const pct = (n: number) => `${((n / r.runs) * 100).toFixed(1)}%`;
   const [a, b] = setup.sides;

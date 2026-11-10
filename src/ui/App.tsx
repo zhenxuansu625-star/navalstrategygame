@@ -1,4 +1,4 @@
-import { DEFAULT_SCENARIO } from '../data/scenarios';
+import { defaultBattleSetup } from '../sim/scenario';
 import { BattleView } from './BattleView';
 
 export function App() {
@@ -9,7 +9,7 @@ export function App() {
         <span className="subtitle">Battle sandbox</span>
       </header>
       <main>
-        <BattleView setup={DEFAULT_SCENARIO} />
+        <BattleView setup={defaultBattleSetup()} />
       </main>
     </div>
   );
