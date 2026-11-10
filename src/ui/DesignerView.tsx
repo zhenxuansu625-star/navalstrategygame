@@ -383,7 +383,7 @@ function DesignEditor({
           <SlotRow title="Other">{hull.slots.filter((s) => !onStage.has(s.id) && (s.group === 'fixed' || s.group === 'main' || s.group === 'deck')).map((s) => tile(s))}</SlotRow>
         )}
         {secondary.length > 0 && <SlotRow title="Secondary armament">{secondary.map((s) => tile(s))}</SlotRow>}
-        {custom.length > 0 && <SlotRow title="Custom slots">{custom.map((s) => tile(s))}</SlotRow>}
+        {custom.length > 0 && <SlotRow title={hull.hullClass === 'submarine' ? 'Systems' : 'Custom slots'}>{custom.map((s) => tile(s))}</SlotRow>}
       </div>
 
       {issues.length > 0 && (

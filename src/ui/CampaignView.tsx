@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AGGRESSIVENESS, type AggressivenessId } from '../data/battle';
 import { BUILDING_NAMES, ECONOMY, MONTH_NAMES } from '../data/economy';
 import { HULL_CLASS_NAMES } from '../data/hulls';
-import { NATIONS } from '../data/nations';
+import type { BattleSetup, BattleState } from '../sim/battle';
 import { designCost, designYear, type Design, type HullClass } from '../sim/designer';
 import {
   aiCommands,
+  applyBattleResult,
   applyCommand,
-  createGame,
   DEFAULT_CONTEXT as CTX,
   designProblem,
   fleetBattleSetup,
@@ -17,124 +17,82 @@ import {
   infrastructureCost,
   lineCap,
   nationDef,
+  nationName,
+  repairBerths,
   resolveModifiers,
-  step,
+  shipMax,
+  shipsInDock,
+  stepDay,
   type BuildingType,
   type Command,
   type GameDate,
   type GameState,
-  type NationDef,
   type NationState,
   type ResourceType,
+  type ShipRecord,
 } from '../sim/economy';
-import { createRng, rngFromState } from '../sim/rng';
+import { rngFromState } from '../sim/rng';
 import { ShipSilhouette } from './art/ShipSilhouette';
 import { BattleView } from './BattleView';
-import { Frame } from './components';
+import { TraitList } from './CampaignStart';
+import { Bar, Frame } from './components';
 import { pct } from './format';
-import { load, save } from './storage';
 
-interface Campaign {
+export interface Campaign {
   game: GameState;
   rngState: number;
 }
 
-const formatDate = (d: GameDate) => `${MONTH_NAMES[d.month - 1]} ${d.year}`;
+const formatDate = (d: GameDate) => `${d.day ?? 1} ${MONTH_NAMES[d.month - 1]} ${d.year}`;
 const k = (n: number) => (n >= 10000 ? `${Math.round(n / 1000)}k` : String(Math.round(n)));
 
-export function CampaignView({ designs }: { designs: Design[] }) {
-  const [campaign, setCampaign] = useState<Campaign | null>(() => load<Campaign | null>('campaign', null));
-  useEffect(() => save('campaign', campaign), [campaign]);
+/** Game days per real second at each clock speed (0 = paused). */
+const SPEEDS = [0, 1.5, 4, 10, 25, 60];
 
-  if (!campaign) {
-    return (
-      <CampaignSetup
-        onStart={(playerId, rivalId, startYear) =>
-          setCampaign({ game: createGame(CTX, { playerId, rivalId, startYear }), rngState: createRng(startYear).getState() })
-        }
-      />
-    );
-  }
+export function CampaignView({
+  campaign,
+  setCampaign,
+  designs,
+}: {
+  campaign: Campaign;
+  setCampaign: (c: Campaign | ((prev: Campaign) => Campaign)) => void;
+  designs: Design[];
+}) {
   return <CampaignScreen campaign={campaign} setCampaign={setCampaign} designs={designs} />;
 }
 
-/* ------------------------------------------------------------------ */
-/* Setup                                                               */
-/* ------------------------------------------------------------------ */
-
-function CampaignSetup({ onStart }: { onStart: (playerId: string, rivalId: string, startYear: number) => void }) {
-  const [playerId, setPlayerId] = useState('uk');
-  const [rivalId, setRivalId] = useState('germany');
-  const [startYear, setStartYear] = useState(ECONOMY.defaultStartYear);
-  const rival = rivalId === playerId ? NATIONS.find((n) => n.id !== playerId)!.id : rivalId;
-  return (
-    <Frame title="New campaign" className="campaign-setup">
-      <p className="muted setup-intro">
-        Choose the navy you will run. Each month your civilian factories build, your dockyards launch ships, and a rival
-        power does the same.
-      </p>
-      <div className="nation-grid">
-        {NATIONS.map((n) => (
-          <NationCard key={n.id} def={n} selected={n.id === playerId} onSelect={() => setPlayerId(n.id)} />
-        ))}
-      </div>
-      <div className="setup-row">
-        <label>
-          <span>Rival</span>
-          <select value={rival} onChange={(e) => setRivalId(e.target.value)}>
-            {NATIONS.filter((n) => n.id !== playerId).map((n) => (
-              <option key={n.id} value={n.id}>
-                {n.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Start year</span>
-          <select value={startYear} onChange={(e) => setStartYear(Number(e.target.value))}>
-            {ECONOMY.startYears.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button className="primary" onClick={() => onStart(playerId, rival, startYear)}>
-          Start campaign
-        </button>
-      </div>
-      <p className="muted small">
-        Until research is added, a design can be laid down once the year reaches its newest technology. Pick a later start
-        year to build later ships.
-      </p>
-    </Frame>
-  );
+/** One day for the whole campaign: the rival's AI gives its orders on the first of each month. */
+function advanceOneDay(c: Campaign): Campaign {
+  const rng = rngFromState(c.rngState);
+  const g = c.game;
+  const orders = (g.date.day ?? 1) === 1 ? { [g.rivalId]: aiCommands(CTX, g, g.rivalId) } : {};
+  return { game: stepDay(g, orders, rng, CTX), rngState: rng.getState() };
 }
 
-function NationCard({ def, selected, onSelect }: { def: NationDef; selected: boolean; onSelect: () => void }) {
-  return (
-    <button className={`nation-card ${selected ? 'selected' : ''}`} onClick={onSelect}>
-      <span className="nation-name">{def.name}</span>
-      <span className="nation-blurb">{def.blurb}</span>
-      <span className="nation-industry">
-        {def.civilianFactories} factories · {def.dockyards} dockyards · {def.buildingSlots} slots · {def.resources.steel} steel
-      </span>
-      <TraitList def={def} />
-    </button>
-  );
-}
-
-function TraitList({ def }: { def: NationDef }) {
-  return (
-    <span className="trait-list">
-      {def.traits.map((t) => (
-        <span key={t.id} className={`trait ${t.kind} ${t.inactive ? 'inactive' : ''}`} title={t.inactive ?? undefined}>
-          <strong>{t.name}:</strong> {t.description}
-          {t.inactive && <em> Not active yet: needs submarines.</em>}
-        </span>
-      ))}
-    </span>
-  );
+/** The campaign clock: runs whole days at the chosen speed, a few per frame at most. */
+function useCampaignClock(speed: number, running: boolean, setCampaign: (fn: (c: Campaign) => Campaign) => void) {
+  useEffect(() => {
+    if (!running || speed <= 0) return;
+    let frame = 0;
+    let last = performance.now();
+    let owed = 0;
+    const tick = (now: number) => {
+      owed += ((now - last) / 1000) * SPEEDS[speed]!;
+      last = now;
+      const days = Math.min(4, Math.floor(owed));
+      if (days > 0) {
+        owed -= days;
+        setCampaign((c) => {
+          let next = c;
+          for (let i = 0; i < days; i++) next = advanceOneDay(next);
+          return next;
+        });
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [speed, running, setCampaign]);
 }
 
 /* ------------------------------------------------------------------ */
@@ -147,18 +105,51 @@ function CampaignScreen({
   designs,
 }: {
   campaign: Campaign;
-  setCampaign: (c: Campaign | null) => void;
+  setCampaign: (c: Campaign | ((prev: Campaign) => Campaign)) => void;
   designs: Design[];
 }) {
   const { game } = campaign;
   const [error, setError] = useState<string | null>(null);
-  const [warGame, setWarGame] = useState(false);
+  const [speed, setSpeed] = useState(0);
+  const [lastSpeed, setLastSpeed] = useState(2);
+  /** The war game's fleets, frozen when it starts so the clock cannot change them mid-battle. */
+  const [warGame, setWarGame] = useState<{ setup: BattleSetup; applied: boolean } | null>(null);
   const player = game.nations[game.playerId]!;
   const rival = game.nations[game.rivalId]!;
   const playerDef = nationDef(CTX, game.playerId);
-  const rivalDef = nationDef(CTX, game.rivalId);
+  const playerName = nationName(CTX, game, game.playerId);
+  const rivalName = nationName(CTX, game, game.rivalId);
   const report = useMemo(() => industryReport(CTX, player), [player]);
-  const over = game.date.year > ECONOMY.endYear;
+
+  const setFn = useCallback((fn: (c: Campaign) => Campaign) => setCampaign(fn), [setCampaign]);
+  useCampaignClock(speed, !warGame, setFn);
+
+  const togglePause = useCallback(() => {
+    setSpeed((sp) => {
+      if (sp > 0) {
+        setLastSpeed(sp);
+        return 0;
+      }
+      return lastSpeed;
+    });
+  }, [lastSpeed]);
+
+  // HOI4-style keys: space pauses, + and - change speed.
+  const keyRef = useRef({ togglePause });
+  keyRef.current.togglePause = togglePause;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA')) return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        keyRef.current.togglePause();
+      } else if (e.key === '+' || e.key === '=') setSpeed((sp) => Math.min(5, Math.max(1, sp + 1)));
+      else if (e.key === '-' || e.key === '_') setSpeed((sp) => Math.max(1, sp - 1));
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const command = (cmd: Command) => {
     const result = applyCommand(CTX, game, game.playerId, cmd);
@@ -166,19 +157,20 @@ function CampaignScreen({
     if (!result.error) setCampaign({ ...campaign, game: result.state });
   };
 
-  const advance = (months: number) => {
-    const rng = rngFromState(campaign.rngState);
-    let g = game;
-    for (let i = 0; i < months && g.date.year <= ECONOMY.endYear; i++) {
-      g = step(g, { [g.rivalId]: aiCommands(CTX, g, g.rivalId) }, rng, CTX);
-    }
-    setError(null);
-    setCampaign({ game: g, rngState: rng.getState() });
+  const startWarGame = () => {
+    setSpeed(0);
+    setWarGame({ setup: fleetBattleSetup(CTX, game, game.playerId, game.rivalId), applied: false });
   };
 
-  const battleSetup = useMemo(
-    () => (warGame ? fleetBattleSetup(CTX, game, game.playerId, game.rivalId) : null),
-    [warGame, game],
+  const onBattleFinished = useCallback(
+    (battle: BattleState) => {
+      setWarGame((w) => {
+        if (!w || w.applied) return w;
+        setCampaign((c) => ({ ...c, game: applyBattleResult(CTX, c.game, battle, [c.game.playerId, c.game.rivalId]) }));
+        return { ...w, applied: true };
+      });
+    },
+    [setCampaign],
   );
 
   return (
@@ -186,35 +178,46 @@ function CampaignScreen({
       <Frame className="campaign-header">
         <div className="campaign-top">
           <div>
-            <div className="campaign-nation">{playerDef.name}</div>
+            <div className="campaign-nation">{playerName.name}</div>
             <div className="muted small">
-              Rival: {rivalDef.name} · turn {game.turn}
+              Rival: {rivalName.name} · month {game.turn + 1}
             </div>
           </div>
-          <div className="campaign-date">{formatDate(game.date)}</div>
+          <div className="campaign-clock">
+            <div className="campaign-date">{formatDate(game.date)}</div>
+            <div className="speed-controls" role="group" aria-label="Game speed">
+              <button
+                className={`pause-button ${speed === 0 ? 'paused' : ''}`}
+                onClick={togglePause}
+                disabled={!!warGame}
+                title="Pause or resume (space)"
+              >
+                {speed === 0 ? '▶' : '❚❚'}
+              </button>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  className={`speed-pip ${speed > 0 && n <= speed ? 'on' : ''} ${speed === 0 && n <= lastSpeed ? 'dim' : ''}`}
+                  onClick={() => {
+                    setSpeed(n);
+                    setLastSpeed(n);
+                  }}
+                  disabled={!!warGame}
+                  title={`Speed ${n}: ${SPEEDS[n]} days per second (+ and - change speed)`}
+                  aria-label={`Speed ${n}`}
+                />
+              ))}
+            </div>
+            <div className="muted small clock-state">{warGame ? 'Paused for the war game' : speed === 0 ? 'Paused' : `Speed ${speed}`}</div>
+          </div>
           <div className="campaign-actions">
-            <button className="primary" onClick={() => advance(1)} disabled={over}>
-              End month
-            </button>
-            <button onClick={() => advance(6)} disabled={over} title="Advance six months with the current orders">
-              +6 months
-            </button>
-            <button onClick={() => advance(12)} disabled={over} title="Advance a year with the current orders">
-              +1 year
-            </button>
-            <button
-              className="danger"
-              onClick={() => {
-                if (confirm('Abandon this campaign and start a new one?')) setCampaign(null);
-              }}
-            >
-              New campaign
+            <button onClick={() => setCampaign(advanceOneDay(campaign))} disabled={speed > 0 || !!warGame} title="Advance one day">
+              +1 day
             </button>
           </div>
         </div>
         <IndustryStrip nation={player} report={report} />
         <TraitList def={playerDef} />
-        {over && <div className="notice">The campaign has reached {ECONOMY.endYear}. Start a new one to keep playing.</div>}
         {error && <div className="problems-line">{error}</div>}
       </Frame>
 
@@ -224,8 +227,8 @@ function CampaignScreen({
       </div>
 
       <div className="campaign-columns">
-        <FleetPanel title={`${playerDef.adjective} Navy`} nation={player} side={0} />
-        <FleetPanel title={`${rivalDef.adjective} Navy (rival)`} nation={rival} side={1} industry />
+        <FleetPanel title={`${playerName.adjective} Navy`} nation={player} side={0} command={command} />
+        <FleetPanel title={`${rivalName.adjective} Navy (rival)`} nation={rival} side={1} industry />
       </div>
 
       <Frame
@@ -243,29 +246,34 @@ function CampaignScreen({
                 </option>
               ))}
             </select>
-            <button className={warGame ? '' : 'primary'} onClick={() => setWarGame(!warGame)}>
-              {warGame ? 'Close' : `Fight the ${rivalDef.adjective} Navy`}
-            </button>
+            {warGame ? (
+              <button onClick={() => setWarGame(null)}>{warGame.applied ? 'Close' : 'Abandon'}</button>
+            ) : (
+              <button className="primary" onClick={startWarGame}>
+                Fight the {rivalName.adjective} Navy
+              </button>
+            )}
           </>
         }
       >
         <p className="muted small war-game-hint">
-          A what-if battle between both whole fleets as they stand this month. Nothing is lost: real wars arrive in a later
-          slice.
+          Both fleets fight as they stand: damaged ships fight damaged, ships in dock stay in port. Ships sunk are lost and the
+          survivors keep their damage; send them to dock to repair. The clock pauses while the battle is on.
         </p>
+        {warGame?.applied && <div className="notice">Result recorded. Survivors keep their damage: repair them from the fleet panel.</div>}
       </Frame>
-      {battleSetup && <BattleView setup={battleSetup} />}
+      {warGame && <BattleView setup={warGame.setup} onFinish={onBattleFinished} />}
 
       <Frame title="Dispatches" className="events">
-        {game.events.length === 0 && <p className="muted small">Nothing to report yet. End the month to begin.</p>}
+        {game.events.length === 0 && <p className="muted small">Nothing to report yet. Unpause the clock to begin.</p>}
         <ul>
           {game.events
-            .filter((e) => e.nationId === game.playerId || e.kind === 'launch')
+            .filter((e) => e.nationId === game.playerId || e.kind === 'launch' || e.kind === 'battle')
             .reverse()
             .slice(0, 14)
             .map((e, i) => (
               <li key={i} className={e.nationId === game.playerId ? 'side-0-text' : 'side-1-text'}>
-                <span className="muted">{formatDate(e.date)}</span> {nationDef(CTX, e.nationId).name}: {e.text}
+                <span className="muted">{formatDate(e.date)}</span> {nationName(CTX, game, e.nationId).name}: {e.text}
               </li>
             ))}
         </ul>
@@ -573,19 +581,39 @@ function ProductionPanel({
 /* Fleets                                                              */
 /* ------------------------------------------------------------------ */
 
-function FleetPanel({ title, nation, side, industry }: { title: string; nation: NationState; side: 0 | 1; industry?: boolean }) {
+function FleetPanel({
+  title,
+  nation,
+  side,
+  industry,
+  command,
+}: {
+  title: string;
+  nation: NationState;
+  side: 0 | 1;
+  industry?: boolean;
+  /** Present for the player's own fleet: enables repair orders. */
+  command?: (c: Command) => void;
+}) {
   const groups = useMemo(() => {
-    const m = new Map<string, { design: Design; count: number }>();
+    const m = new Map<string, { design: Design; count: number; damaged: number; inDock: number }>();
     for (const ship of nation.fleet) {
       const key = `${ship.design.id}|${ship.design.name}`;
-      const g = m.get(key) ?? { design: ship.design, count: 0 };
+      const g = m.get(key) ?? { design: ship.design, count: 0, damaged: 0, inDock: 0 };
       g.count += 1;
+      if (ship.hp !== undefined) g.damaged += 1;
+      if (ship.repairing) g.inDock += 1;
       m.set(key, g);
     }
-    const order: HullClass[] = ['carrier', 'superHeavy', 'battleship', 'battlecruiser', 'heavyCruiser', 'lightCruiser', 'destroyer'];
+    const order: HullClass[] = ['carrier', 'superHeavy', 'battleship', 'battlecruiser', 'heavyCruiser', 'lightCruiser', 'destroyer', 'submarine'];
     const rank = (d: Design) => order.indexOf(CTX.catalog.hulls.get(d.hullId)?.hullClass ?? 'destroyer');
     return [...m.values()].sort((a, b) => rank(a.design) - rank(b.design) || designYear(CTX.catalog, b.design) - designYear(CTX.catalog, a.design));
   }, [nation.fleet]);
+  const damaged = nation.fleet.filter((s) => s.hp !== undefined || s.org !== undefined);
+  const dock = new Set(shipsInDock(CTX, nation).map((s) => s.id));
+  const berths = repairBerths(CTX, nation);
+  const anyRepairing = nation.fleet.some((s) => s.repairing);
+  const needsRepair = nation.fleet.some((s) => s.hp !== undefined && !s.repairing);
   return (
     <Frame
       title={title}
@@ -598,22 +626,95 @@ function FleetPanel({ title, nation, side, industry }: { title: string; nation: 
     >
       {industry && (
         <p className="muted small">
-          Intelligence: {nation.civilianFactories} civilian factories, {nation.dockyards} dockyards, {nation.lines.length} production lines.
+          Intelligence: {nation.civilianFactories} civilian factories, {nation.dockyards} dockyards, {nation.lines.length} production lines
+          {damaged.length > 0 ? `, ${damaged.length} ships damaged` : ''}.
         </p>
       )}
       {groups.length === 0 && <p className="muted small">No ships.</p>}
       <div className="fleet-chips">
-        {groups.map(({ design, count }) => {
+        {groups.map(({ design, count, damaged: hurt, inDock }) => {
           const hull = CTX.catalog.hulls.get(design.hullId);
           return (
             <div key={`${design.id}|${design.name}`} className="fleet-chip" title={hull ? HULL_CLASS_NAMES[hull.hullClass] : ''}>
               {hull && <ShipSilhouette kind={hull.hullClass} flip={side === 1} className="fleet-chip-sil" />}
               <span className="fleet-chip-count">{count}</span>
-              <span className="fleet-chip-name">{design.name}</span>
+              <span className="fleet-chip-name">
+                {design.name}
+                {hurt > 0 && <span className="fleet-chip-hurt"> · {hurt} damaged{inDock > 0 ? `, ${inDock} in dock` : ''}</span>}
+              </span>
             </div>
           );
         })}
       </div>
+
+      {command && (
+        <div className="repair-panel">
+          <div className="repair-head">
+            <span className="panel-heading-inline">Repairs</span>
+            <span className="muted small">
+              {berths} berths · {dock.size} in dock
+            </span>
+            <span className="row-buttons">
+              <button onClick={() => command({ type: 'setRepair', ships: 'damaged', repairing: true })} disabled={!needsRepair}>
+                Repair all
+              </button>
+              <button className="danger" onClick={() => command({ type: 'setRepair', ships: 'all', repairing: false })} disabled={!anyRepairing}>
+                Cancel repairs
+              </button>
+            </span>
+          </div>
+          {damaged.length === 0 ? (
+            <p className="muted small">The whole fleet is at full strength.</p>
+          ) : (
+            <div className="damaged-list">
+              {damaged.map((ship) => (
+                <DamagedShip key={ship.id} nationId={nation.id} ship={ship} inDock={dock.has(ship.id)} command={command} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </Frame>
+  );
+}
+
+function DamagedShip({
+  nationId,
+  ship,
+  inDock,
+  command,
+}: {
+  nationId: string;
+  ship: ShipRecord;
+  inDock: boolean;
+  command: (c: Command) => void;
+}) {
+  const max = shipMax(CTX, nationId, ship);
+  const hp = (ship.hp ?? max.hp) / max.hp;
+  const org = (ship.org ?? max.org) / max.org;
+  const status = ship.repairing ? (inDock ? 'In dock' : 'Waiting for a berth') : ship.hp !== undefined ? 'Damaged' : 'Recovering';
+  const months = inDock && ship.hp !== undefined ? Math.ceil((1 - hp) / ECONOMY.repair.hpPerMonth * 30) : null;
+  return (
+    <div className={`damaged-ship ${ship.repairing ? 'repairing' : ''}`}>
+      <div className="damaged-ship-head">
+        <span className="damaged-ship-name">{ship.name}</span>
+        <span className="muted small">{ship.design.name}</span>
+        <span className={`small damaged-status ${inDock ? 'better' : ship.repairing ? '' : 'worse'}`}>
+          {status}
+          {months ? ` · ${months} days` : ''}
+        </span>
+        {ship.hp !== undefined && (
+          <button
+            className="icon-button"
+            onClick={() => command({ type: 'setRepair', ships: [ship.id], repairing: !ship.repairing })}
+            title={ship.repairing ? 'Recall from dock: the ship can fight again, still damaged' : 'Send to dock: the ship sits out battles while it repairs'}
+          >
+            {ship.repairing ? 'Recall' : 'Repair'}
+          </button>
+        )}
+      </div>
+      <Bar kind="hp" value={hp} title={`HP ${Math.round(hp * 100)}%`} />
+      <Bar kind="org" value={org} title={`Organisation ${Math.round(org * 100)}%`} />
+    </div>
   );
 }

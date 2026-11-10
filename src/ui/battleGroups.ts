@@ -14,6 +14,8 @@ export interface ShipGroup {
   escaped: number;
   /** Strike aircraft left on this class's active carriers. */
   planes: number;
+  /** Submarines still submerged (cannot be targeted). */
+  hidden: number;
   /** HP and org of ships still in the battle, as a fraction of their maximum (0 if none remain). */
   hpFrac: number;
   orgFrac: number;
@@ -32,13 +34,14 @@ export function groupShips(battle: Pick<BattleState, 'ships'>, side: SideIndex, 
       g = {
         key, side, line, className: ship.className,
         ...(ship.hullClass ? { hullClass: ship.hullClass } : {}),
-        ships: [], active: 0, retreating: 0, sunk: 0, escaped: 0, planes: 0, hpFrac: 0, orgFrac: 0,
+        ships: [], active: 0, retreating: 0, sunk: 0, escaped: 0, planes: 0, hidden: 0, hpFrac: 0, orgFrac: 0,
       };
       groups.set(key, g);
     }
     g.ships.push(ship);
     g[ship.status === 'active' ? 'active' : ship.status] += 1;
     if (ship.status === 'active') g.planes += ship.planes;
+    if (ship.hidden && (ship.status === 'active' || ship.status === 'retreating')) g.hidden += 1;
   }
   for (const g of groups.values()) {
     let hp = 0, maxHp = 0, org = 0, maxOrg = 0;

@@ -110,7 +110,7 @@ function PlaneGlyph() {
 }
 
 /** Icons for the battle firepower panel. */
-export type StatIconKind = 'lightBattery' | 'heavyBattery' | 'torpedo' | 'hangar' | 'aa';
+export type StatIconKind = 'lightBattery' | 'heavyBattery' | 'torpedo' | 'hangar' | 'aa' | 'asw';
 
 export function ModuleIcon({ category, className }: { category: ModuleCategory | 'empty'; className?: string }) {
   return (
