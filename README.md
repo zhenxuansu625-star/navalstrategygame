@@ -33,3 +33,15 @@ Layout: `src/sim` (pure TypeScript simulation, no UI), `src/data` (all balance n
 
 `.github/workflows/deploy.yml` runs tests, builds and publishes `dist/` to GitHub Pages on every
 push to `main`. One-time setup: **Settings → Pages → Source: GitHub Actions**.
+
+If the site does not update after a merge:
+
+1. Open the **Actions** tab and check the latest **Deploy to GitHub Pages** run.
+2. If the `deploy` job failed with *"Deployment failed, try again later"*, that is a temporary
+   GitHub Pages outage: open the run and click **Re-run failed jobs**, or use **Run workflow** on `main`.
+   If `npm test` or `npm run build` failed instead, the change itself needs fixing.
+3. Once the run is green, hard-refresh the page (Ctrl+Shift+R / Cmd+Shift+R). GitHub Pages caches
+   pages for up to 10 minutes.
+
+Keep only this one Pages workflow: a second one (for example GitHub's Jekyll template) would publish
+the raw repository instead of the built game.
