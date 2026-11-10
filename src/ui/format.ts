@@ -1,3 +1,4 @@
+import type { Line } from '../sim/battle';
 import type { DesignStats, Module, NumericStatKey } from '../sim/designer';
 
 export const pct = (n: number) => `${Math.round(n * 100)}%`;
@@ -15,6 +16,7 @@ export function formatModuleStats(m: Module): string {
   if (s.aa) parts.push(`AA +${s.aa}`);
   if (s.surfaceDetection) parts.push(`detect +${s.surfaceDetection}`);
   if (s.subDetection) parts.push(`sub detect +${s.subDetection}`);
+  if (s.airWing) parts.push(`air wing +${s.airWing}`);
   return parts.join(', ');
 }
 
@@ -42,9 +44,10 @@ export const STAT_ROWS: StatRow[] = [
   { key: 'torpedoAttack', group: 'combat', label: 'Torpedo attack', better: 1 },
   { key: 'torpedoPiercing', group: 'combat', label: 'Torpedo piercing', better: 1 },
   { key: 'fireControl', group: 'combat', label: 'Fire control (hit)', better: 1, format: (v) => `+${pct(v)}` },
+  { key: 'airWing', group: 'combat', label: 'Strike aircraft', better: 1 },
+  { key: 'aa', group: 'combat', label: 'Anti-air', better: 1 },
   { key: 'speed', group: 'mobility', label: 'Speed (kn)', better: 1 },
   { key: 'visibility', group: 'mobility', label: 'Visibility', better: -1 },
-  { key: 'aa', group: 'mobility', label: 'AA', better: 1, inactive: true },
   { key: 'surfaceDetection', group: 'mobility', label: 'Surface detection', better: 1, inactive: true },
   { key: 'subDetection', group: 'mobility', label: 'Sub detection', better: 1, inactive: true },
 ];
@@ -62,3 +65,9 @@ export const STAT_GROUP_TITLES: Record<StatGroup, string> = {
 
 const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI'];
 export const roman = (n: number) => ROMAN[n] ?? String(n);
+
+export const LINE_NAMES: Record<Line, string> = {
+  capital: 'Capital ships',
+  screen: 'Screens',
+  carrier: 'Carriers',
+};

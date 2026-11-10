@@ -5,7 +5,7 @@ Design notes live in [`docs/`](docs/); the build order is in [`docs/08-roadmap.m
 
 **Play it:** https://zhenxuansu625-star.github.io/navalstrategygame/ (deployed from `main` by GitHub Actions).
 
-## Current state: roadmap slices 1 and 2
+## Current state: roadmap slices 1 and 2, plus early carriers
 
 - **Ship designer:** pick a hull, fill its fixed, main, secondary and custom slots, and see
   derived stats, production cost, build time, a comparison with another design and a piercing check
@@ -14,7 +14,15 @@ Design notes live in [`docs/`](docs/); the build order is in [`docs/08-roadmap.m
 - **Battle sandbox:** build two fleets from any designs and watch them fight in hourly ticks:
   battle lines (screens and capitals), hit chance, piercing vs armour, HP and organisation,
   screening, retreat and escape, an hourly log and an after-action report. Battles are seeded,
-  so the same seed and fleets always give the same battle.
+  so the same seed and fleets always give the same battle. A firepower panel compares both fleets'
+  light guns, heavy guns, torpedoes, strike aircraft and AA as the battle goes on.
+- **Eras for testing:** WW1 dreadnoughts (Dreadnought 1906, Super-dreadnought 1914, Battlecruiser 1908)
+  and WW2 aircraft carriers (Carrier I–III hulls, hangars, Light carrier 1940, Fleet carrier 1942).
+  Carriers sit behind the capital ships and launch air strikes every 3 hours; AA cuts the damage and
+  shoots planes down. Fighters, spotting and submarines come in later slices.
+- **Ready-made test battles:** *Load scenario* in the fleet editor offers Blue vs Red (1915),
+  Dreadnought clash (1916) and Carrier strike (1942). `npm run simulate -- --scenario carriers` runs
+  any of them 1,000 times.
 
 ## Development
 

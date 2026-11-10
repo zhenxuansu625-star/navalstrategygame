@@ -2,7 +2,14 @@
  * Side-profile ship silhouettes drawn from a few parameters per hull class.
  * The ship faces right; pass `flip` to face left.
  */
-export type SilhouetteKind = 'destroyer' | 'lightCruiser' | 'heavyCruiser' | 'battlecruiser' | 'battleship' | 'superHeavy';
+export type SilhouetteKind =
+  | 'destroyer'
+  | 'lightCruiser'
+  | 'heavyCruiser'
+  | 'battlecruiser'
+  | 'battleship'
+  | 'superHeavy'
+  | 'carrier';
 
 interface Profile {
   /** Hull length in viewBox units (box is 200 wide). */
@@ -40,6 +47,12 @@ const PROFILES: Record<SilhouetteKind, Profile> = {
     turrets: [{ at: 0.84, size: 11, barrels: 2 }, { at: 0.74, size: 11, barrels: 2, raised: true }, { at: 0.26, size: 11, barrels: 2, raised: true }, { at: 0.15, size: 11, barrels: 2 }],
     funnels: [0.5], bridge: { at: 0.62, height: 21, width: 0.1 },
   },
+  carrier: {
+    // Turrets here are the deck-edge AA mounts; the flight deck and island are drawn separately.
+    length: 190, freeboard: 13,
+    turrets: [],
+    funnels: [0.6], bridge: { at: 0.64, height: 12, width: 0.07 },
+  },
   superHeavy: {
     length: 194, freeboard: 10,
     turrets: [{ at: 0.84, size: 14, barrels: 3 }, { at: 0.73, size: 14, barrels: 3, raised: true }, { at: 0.17, size: 14, barrels: 3 }],
@@ -69,6 +82,7 @@ export function ShipSilhouette({
   className?: string;
   title?: string;
 }) {
+  if (kind === 'carrier') return <CarrierSilhouette flip={flip} className={className} title={title} />;
   const { p, x0, x1, deck, x } = silhouetteGeometry(kind);
   const bowRise = p.freeboard * 0.5;
   const hull = `M ${x0 + 3} ${WATERLINE + 3} L ${x0} ${deck} L ${x1 - 14} ${deck} L ${x1} ${deck - bowRise} L ${x1 - 7} ${WATERLINE + 3} Z`;
@@ -134,7 +148,37 @@ export function ShipSilhouette({
   );
 }
 
-export function silhouetteFor(hullClass: string | undefined, line: 'screen' | 'capital'): SilhouetteKind {
+export function silhouetteFor(hullClass: string | undefined, line: 'screen' | 'capital' | 'carrier'): SilhouetteKind {
   if (hullClass && hullClass in PROFILES) return hullClass as SilhouetteKind;
-  return line === 'screen' ? 'destroyer' : 'battleship';
+  return line === 'screen' ? 'destroyer' : line === 'carrier' ? 'carrier' : 'battleship';
+}
+
+/** Flat-top: high hull, overhanging flight deck, island to starboard and a few parked aircraft. */
+function CarrierSilhouette({ flip, className, title }: { flip: boolean; className?: string; title?: string }) {
+  const { x0, x1, deck, x } = silhouetteGeometry('carrier');
+  const flightDeck = deck - 3;
+  const hull = `M ${x0 + 4} ${WATERLINE + 3} L ${x0 + 2} ${deck} L ${x1 - 10} ${deck} L ${x1 - 2} ${deck - 2} L ${x1 - 8} ${WATERLINE + 3} Z`;
+  const planes = [0.12, 0.2, 0.28, 0.36];
+  return (
+    <svg viewBox="0 0 200 52" className={className} role="img" aria-label={title ?? 'carrier'} preserveAspectRatio="xMidYMax meet">
+      {title && <title>{title}</title>}
+      <g transform={flip ? 'translate(200 0) scale(-1 1)' : undefined}>
+        <path d={`M 2 ${WATERLINE + 3.5} H 198`} className="sil-water" />
+        <path d={hull} className="sil-hull" />
+        {/* hangar sides */}
+        <rect x={x0 + 6} y={flightDeck} width={x1 - x0 - 16} height={3} className="sil-body" />
+        {/* flight deck, overhanging bow and stern */}
+        <rect x={x0 - 2} y={flightDeck - 2} width={x1 - x0 + 2} height={2} className="sil-hull" />
+        {/* island and funnel */}
+        <rect x={x(0.6)} y={flightDeck - 10} width={14} height={8} className="sil-body" />
+        <rect x={x(0.62)} y={flightDeck - 15} width={6} height={5} className="sil-body" />
+        <path d={`M ${x(0.6) + 9} ${flightDeck - 10} L ${x(0.6) + 10} ${flightDeck - 16} L ${x(0.6) + 14} ${flightDeck - 16} L ${x(0.6) + 14} ${flightDeck - 10} Z`} className="sil-body" />
+        <line x1={x(0.6) + 5} y1={flightDeck - 15} x2={x(0.6) + 5} y2={flightDeck - 22} className="sil-mast" />
+        {/* parked aircraft */}
+        {planes.map((f, i) => (
+          <path key={i} d={`M ${x(f) - 3} ${flightDeck - 2} L ${x(f) + 3} ${flightDeck - 2} M ${x(f) - 1} ${flightDeck - 2} L ${x(f) + 1} ${flightDeck - 4}`} className="sil-mast" />
+        ))}
+      </g>
+    </svg>
+  );
 }

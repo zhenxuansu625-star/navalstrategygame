@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ROLE_SUGGESTIONS } from '../data/designs';
 import { HULLS, HULL_CLASS_NAMES } from '../data/hulls';
-import { MODULE_CATEGORY_NAMES, MODULES } from '../data/modules';
+import { MODULE_CATEGORY_NAMES } from '../data/modules';
 import { PRODUCTION } from '../data/production';
 import {
   changeHull,
@@ -24,7 +24,7 @@ import {
 import { ModuleIcon } from './art/ModuleIcon';
 import { ShipSilhouette, silhouetteGeometry, type SilhouetteKind } from './art/ShipSilhouette';
 import { Frame } from './components';
-import { formatModuleStats, roman, STAT_GROUP_TITLES, STAT_ROWS, statValue, type StatGroup } from './format';
+import { formatModuleStats, LINE_NAMES, STAT_GROUP_TITLES, STAT_ROWS, statValue, type StatGroup } from './format';
 
 interface Props {
   userDesigns: Design[];
@@ -35,14 +35,9 @@ interface Props {
 const newId = () => `user_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
 const isPreset = (d: Design) => d.id.startsWith('preset_');
 
-/** Tier of a module within its category (I = oldest). */
-const TIER = new Map<string, number>();
-{
-  const byCat = new Map<string, Module[]>();
-  for (const m of MODULES) byCat.set(m.category, [...(byCat.get(m.category) ?? []), m]);
-  for (const list of byCat.values()) {
-    list.sort((a, b) => a.year - b.year).forEach((m, i) => TIER.set(m.id, i + 1));
-  }
+/** Tier numeral shown on a slot tile: taken from the module's name, e.g. "Cruiser engine III". */
+function moduleTier(m: Module): string | undefined {
+  return / (I{1,3}|IV|V|VI)(?: \(|$)/.exec(m.name)?.[1];
 }
 
 export function DesignerView({ userDesigns, setUserDesigns, allDesigns }: Props) {
@@ -183,6 +178,7 @@ interface Anchor {
 }
 
 function stageAnchors(hull: Hull): Anchor[] {
+  if (hull.hullClass === 'carrier') return carrierAnchors(hull);
   const kind = hull.hullClass as SilhouetteKind;
   const { p, x, deck } = silhouetteGeometry(kind);
   const turrets = [...p.turrets].sort((a, b) => b.at - a.at);
@@ -203,6 +199,24 @@ function stageAnchors(hull: Hull): Anchor[] {
   if (has('armour')) out.push({ slotId: 'armour', tx: 52, ty: bottomY, px: x(0.4), py: 46 });
   if (has('engine')) out.push({ slotId: 'engine', tx: 100, ty: bottomY, px: x(p.funnels[0]!), py: 47 });
   if (has('fireControl')) out.push({ slotId: 'fireControl', tx: 148, ty: bottomY, px: x(p.bridge.at), py: deck - p.bridge.height });
+  return out;
+}
+
+/** Carriers: hangars along the flight deck on top, fixed modules below. */
+function carrierAnchors(hull: Hull): Anchor[] {
+  const { x, deck } = silhouetteGeometry('carrier');
+  const flightDeck = deck - 5;
+  const topY = STAGE.top + 3 + STAGE.tile / 2;
+  const bottomY = STAGE.top + STAGE.height - 3 - STAGE.tile / 2 - 6;
+  const hangars = hull.slots.filter((s) => s.group === 'deck');
+  const out: Anchor[] = hangars.map((slot, i) => {
+    const t = hangars.length === 1 ? 0.5 : i / (hangars.length - 1);
+    return { slotId: slot.id, tx: 36 + t * 128, ty: topY, px: x(0.12 + t * 0.4), py: flightDeck };
+  });
+  const has = (id: string) => hull.slots.some((s) => s.id === id);
+  if (has('armour')) out.push({ slotId: 'armour', tx: 52, ty: bottomY, px: x(0.3), py: flightDeck + 2 });
+  if (has('engine')) out.push({ slotId: 'engine', tx: 100, ty: bottomY, px: x(0.5), py: 47 });
+  if (has('fireControl')) out.push({ slotId: 'fireControl', tx: 148, ty: bottomY, px: x(0.6) + 3, py: flightDeck - 13 });
   return out;
 }
 
@@ -345,14 +359,14 @@ function DesignEditor({
         ) : (
           <span className="muted">
             {hull.name}: base HP {hull.hp}, armour {hull.armour}, {hull.speed} kn, visibility {hull.visibility}. Fights in the{' '}
-            {hull.line === 'capital' ? 'capital' : 'screen'} line. {readOnly ? 'Hover a slot to inspect it.' : 'Click a slot to fit a module.'}
+            {LINE_NAMES[hull.line].toLowerCase()} line. {readOnly ? 'Hover a slot to inspect it.' : 'Click a slot to fit a module.'}
           </span>
         )}
       </div>
 
       <div className="slot-rows">
         {hull.slots.some((s) => !onStage.has(s.id) && s.group !== 'secondary' && s.group !== 'custom') && (
-          <SlotRow title="Other">{hull.slots.filter((s) => !onStage.has(s.id) && (s.group === 'fixed' || s.group === 'main')).map((s) => tile(s))}</SlotRow>
+          <SlotRow title="Other">{hull.slots.filter((s) => !onStage.has(s.id) && (s.group === 'fixed' || s.group === 'main' || s.group === 'deck')).map((s) => tile(s))}</SlotRow>
         )}
         {secondary.length > 0 && <SlotRow title="Secondary armament">{secondary.map((s) => tile(s))}</SlotRow>}
         {custom.length > 0 && <SlotRow title="Custom slots">{custom.map((s) => tile(s))}</SlotRow>}
@@ -440,7 +454,7 @@ function SlotTile({
   onFocus: () => void;
 }) {
   const module = moduleId ? CATALOG.modules.get(moduleId) : undefined;
-  const tier = module ? TIER.get(module.id) : undefined;
+  const tier = module ? moduleTier(module) : undefined;
   return (
     <button
       className={`slot-tile ${module ? 'filled' : 'empty'} ${issue ? 'has-issue' : ''} ${slot.required ? 'required' : ''} ${readOnly ? 'readonly' : ''}`}
@@ -451,7 +465,7 @@ function SlotTile({
       title={`${slot.label}${slot.required ? ' (required)' : ''}\n${module ? `${module.name}: ${formatModuleStats(module)}` : 'Empty'}${issue ? `\n${issue}` : ''}`}
     >
       <ModuleIcon category={module?.category ?? 'empty'} className="slot-icon" />
-      {tier && <span className="slot-tier">{roman(tier)}</span>}
+      {tier && <span className="slot-tier">{tier}</span>}
       <span className="slot-caption">{shortSlotLabel(slot)}</span>
     </button>
   );
@@ -467,6 +481,8 @@ function shortSlotLabel(slot: SlotDef): string {
       return 'Aft';
     case 'fireControl':
       return 'Fire ctrl';
+    case 'armour':
+      return slot.label === 'Deck armour' ? 'Deck' : 'Armour';
     default:
       return slot.label.replace('Secondary ', 'Sec ').replace('Custom ', 'Custom ');
   }
@@ -571,7 +587,7 @@ function StatsPanel({
           ))}
       </select>
       <div className="stat-line-badge">
-        Battle line: <strong>{stats.line === 'capital' ? 'Capital ships' : 'Screens'}</strong>
+        Battle line: <strong>{LINE_NAMES[stats.line]}</strong>
         {cmpStats && <span className="muted"> · comparing with {compare!.name}</span>}
       </div>
 
@@ -602,7 +618,7 @@ function StatsPanel({
           })}
         </div>
       ))}
-      <p className="muted footnote">* No battle effect yet: spotting, air and submarines come in later slices.</p>
+      <p className="muted footnote">* No battle effect yet: spotting and submarines come in later slices.</p>
 
       <div className="stat-group">
         <div className="stat-group-title">Production</div>
