@@ -113,11 +113,14 @@ export interface NationState {
   /** Total production cost of every ship launched during the campaign. */
   producedValue: number;
   aggressiveness: AggressivenessId;
+  /** Standing order: keep the construction queue topped up with this building (and infrastructure when slots run out). */
+  autoBuild?: 'civilianFactory' | 'dockyard' | null;
 }
 
 export interface GameEvent {
   date: GameDate;
   nationId: string;
+  kind: 'building' | 'launch' | 'order';
   text: string;
 }
 
@@ -143,7 +146,8 @@ export type Command =
   | { type: 'setLineDockyards'; lineId: string; dockyards: number }
   | { type: 'setLineDesign'; lineId: string; design: Design }
   | { type: 'setTrade'; resource: ResourceType; factories: number }
-  | { type: 'setAggressiveness'; aggressiveness: AggressivenessId };
+  | { type: 'setAggressiveness'; aggressiveness: AggressivenessId }
+  | { type: 'setAutoBuild'; building: 'civilianFactory' | 'dockyard' | null };
 
 /** Commands per nation for one month. */
 export type Orders = Record<string, Command[]>;

@@ -6,7 +6,7 @@ import { BUILDING_NAMES } from '../../data/economy';
 import { designCost, designYear } from '../designer/stats';
 import type { Design, HullClass } from '../designer/types';
 import type { Rng } from '../rng';
-import { applyCommands } from './commands';
+import { applyCommands, queueFillCommands } from './commands';
 import { DEFAULT_CONTEXT, nationDef, resolveModifiers, type EconomyContext } from './context';
 import { industryReport } from './industry';
 import type { GameDate, GameEvent, GameState, NationDef, NationState, Orders, ShipRecord } from './types';
@@ -99,7 +99,7 @@ function runMonth(ctx: EconomyContext, nation: NationState, date: GameDate, even
   const def = nationDef(ctx, nation.id);
   const mods = resolveModifiers(def);
   const report = industryReport(ctx, nation);
-  const say = (text: string) => events.push({ date, nationId: nation.id, text });
+  const say = (kind: GameEvent['kind'], text: string) => events.push({ date, nationId: nation.id, kind, text });
 
   // Construction queue.
   const stillBuilding = [];
@@ -117,7 +117,7 @@ function runMonth(ctx: EconomyContext, nation: NationState, date: GameDate, even
       nation.infrastructure += 1;
       nation.buildingSlots += cfg.construction.slotsPerInfrastructure;
     }
-    say(`${BUILDING_NAMES[item.building]} completed.`);
+    say('building', `${BUILDING_NAMES[item.building]} completed.`);
   }
   nation.construction = stillBuilding;
 
@@ -134,11 +134,11 @@ function runMonth(ctx: EconomyContext, nation: NationState, date: GameDate, even
       line.built += 1;
       nation.producedValue += r.cost;
       const ship = launch(def, nation, line.design, date);
-      say(`${ship.name} (${line.design.name}) launched.`);
+      say('launch', `${ship.name} (${line.design.name}) launched.`);
       if (line.quantity !== null && line.built >= line.quantity) finished = true;
     }
     if (finished) {
-      say(`Production line for ${line.design.name} completed its order of ${line.quantity}.`);
+      say('order', `Production line for ${line.design.name} completed its order of ${line.quantity}.`);
       continue;
     }
     if (r.assigned > 0) {
@@ -153,6 +153,8 @@ export function step(state: GameState, orders: Orders, _rng: Rng, ctx: EconomyCo
   let next: GameState = state;
   for (const nationId of Object.keys(state.nations)) {
     next = applyCommands(ctx, next, nationId, orders[nationId] ?? []);
+    const standing = next.nations[nationId]!.autoBuild;
+    if (standing) next = applyCommands(ctx, next, nationId, queueFillCommands(ctx, next.nations[nationId]!, standing));
   }
   next = structuredClone(next);
   const events: GameEvent[] = [];

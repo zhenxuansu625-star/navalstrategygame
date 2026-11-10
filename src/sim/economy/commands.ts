@@ -4,8 +4,8 @@ import { designYear } from '../designer/stats';
 import type { Design } from '../designer/types';
 import { validateDesign } from '../designer/validate';
 import type { EconomyContext } from './context';
-import { freeSlots, infrastructureCost, lineCap } from './industry';
-import type { Command, GameState, NationState } from './types';
+import { freeSlots, industryReport, infrastructureCost, lineCap } from './industry';
+import type { BuildingType, Command, GameState, NationState } from './types';
 
 export interface CommandResult {
   state: GameState;
@@ -115,6 +115,8 @@ export function applyCommand(ctx: EconomyContext, state: GameState, nationId: st
       const factories = Math.max(0, Math.floor(cmd.factories));
       return done({ ...nation, trade: { ...nation.trade, [cmd.resource]: factories } });
     }
+    case 'setAutoBuild':
+      return done({ ...nation, autoBuild: cmd.building });
     case 'setAggressiveness': {
       if (!(cmd.aggressiveness in AGGRESSIVENESS)) return fail('Unknown aggressiveness.');
       return done({ ...nation, aggressiveness: cmd.aggressiveness });
@@ -127,4 +129,25 @@ export function applyCommands(ctx: EconomyContext, state: GameState, nationId: s
   let s = state;
   for (const cmd of cmds) s = applyCommand(ctx, s, nationId, cmd).state;
   return s;
+}
+
+/**
+ * Commands that top the construction queue up with `wanted`, so no factory sits
+ * idle: one project per 10 building factories, plus one in hand. When slots run
+ * out it queues infrastructure instead.
+ */
+export function queueFillCommands(ctx: EconomyContext, nation: NationState, wanted: BuildingType): Command[] {
+  const report = industryReport(ctx, nation);
+  const target = Math.max(1, Math.ceil(report.constructionFactories / ctx.config.construction.maxFactoriesPerProject) + 1);
+  const cmds: Command[] = [];
+  let free = freeSlots(nation);
+  for (let n = nation.construction.length; n < target; n++) {
+    if (wanted !== 'infrastructure' && free > 0) {
+      cmds.push({ type: 'queueBuilding', building: wanted });
+      free -= 1;
+    } else {
+      cmds.push({ type: 'queueBuilding', building: 'infrastructure' });
+    }
+  }
+  return cmds;
 }

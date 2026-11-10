@@ -156,6 +156,26 @@ describe('building slots and infrastructure', () => {
     expect(infrastructureCost(ctx, s.nations.a!)).toBe(750);
   });
 
+  it('a standing order keeps the queue full, switching to infrastructure when slots run out', () => {
+    const ctx = world(); // 15 building factories, 2 free slots
+    let s = ok(ctx, newGame(ctx), { type: 'setAutoBuild', building: 'dockyard' });
+    s = month(ctx, s);
+    // Target is 3 projects (15 factories / 10, rounded up, plus one): two dockyards fill the slots, then infrastructure.
+    const built = s.nations.a!.infrastructure;
+    const queued = s.nations.a!.construction.map((c) => c.building);
+    expect(queued.filter((b) => b === 'dockyard')).toHaveLength(2);
+    expect(built + queued.filter((b) => b === 'infrastructure').length).toBe(1);
+    s = month(ctx, s, 24);
+    expect(s.nations.a!.dockyards).toBeGreaterThan(12);
+    expect(industryReport(ctx, s.nations.a!).idleFactories).toBe(0);
+
+    s = ok(ctx, s, { type: 'setAutoBuild', building: null });
+    const before = s.nations.a!.nextId;
+    s = month(ctx, s, 30);
+    expect(s.nations.a!.construction).toHaveLength(0);
+    expect(s.nations.a!.nextId).toBe(before);
+  });
+
   it('projects can be reordered and cancelled', () => {
     const ctx = world();
     let s = newGame(ctx);

@@ -6,9 +6,9 @@
  */
 import { designCost } from '../designer/stats';
 import type { Design, HullClass } from '../designer/types';
-import { designProblem } from './commands';
+import { designProblem, queueFillCommands } from './commands';
 import { nationDef, resolveModifiers, type EconomyContext } from './context';
-import { freeSlots, industryReport, lineCap } from './industry';
+import { industryReport, lineCap } from './industry';
 import { newestDesign } from './step';
 import type { AiProfile, BuildingType, Command, GameState, NationState, ResourceType } from './types';
 
@@ -97,21 +97,8 @@ function productionCommands(ctx: EconomyContext, state: GameState, nation: Natio
 }
 
 function constructionCommands(ctx: EconomyContext, state: GameState, nation: NationState, profile: AiProfile): Command[] {
-  const cfg = ctx.config;
-  const report = industryReport(ctx, nation);
   const wanted: BuildingType = state.turn < profile.transitionMonth ? 'civilianFactory' : 'dockyard';
-  const target = Math.max(1, Math.ceil(report.constructionFactories / cfg.construction.maxFactoriesPerProject) + 1);
-  const cmds: Command[] = [];
-  let free = freeSlots(nation);
-  for (let n = nation.construction.length; n < target; n++) {
-    if (free > 0) {
-      cmds.push({ type: 'queueBuilding', building: wanted });
-      free -= 1;
-    } else {
-      cmds.push({ type: 'queueBuilding', building: 'infrastructure' });
-    }
-  }
-  return cmds;
+  return queueFillCommands(ctx, nation, wanted);
 }
 
 function tradeCommands(ctx: EconomyContext, nation: NationState): Command[] {
