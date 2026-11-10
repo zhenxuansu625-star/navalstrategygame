@@ -1,9 +1,11 @@
+import { useEffect, useState } from 'react';
 import { AGGRESSIVENESS, BATTLE_CONFIG, type AggressivenessId } from '../data/battle';
 import { screeningRatio } from '../sim/battle';
 import { DEFAULT_CATALOG, deriveStats, isValidDesign, type Design, type FleetSetup } from '../sim/designer';
 import { ShipSilhouette } from './art/ShipSilhouette';
 import { Frame } from './components';
 import { pct } from './format';
+import { load, save } from './storage';
 
 interface Props {
   fleets: [FleetSetup, FleetSetup];
@@ -19,17 +21,41 @@ export function FleetEditor({ fleets, setFleets, designs, problems, onReset }: P
     next[side] = fleet;
     setFleets(next);
   };
+  const [open, setOpen] = useState<boolean>(() => load('fleetEditorOpen', false));
+  useEffect(() => save('fleetEditorOpen', open), [open]);
+  const count = (f: FleetSetup) => f.ships.reduce((n, e) => n + e.count, 0);
+
   return (
     <Frame
-      className="fleet-editor"
+      className={`fleet-editor ${open ? 'open' : 'closed'}`}
       title="Order of battle"
-      actions={<button onClick={onReset}>Reset fleets</button>}
+      actions={
+        <>
+          {!open && (
+            <span className="fleet-summary">
+              <span className="side-0-text">{fleets[0].name}</span> {count(fleets[0])} ships
+              <span className="muted"> vs </span>
+              <span className="side-1-text">{fleets[1].name}</span> {count(fleets[1])} ships
+            </span>
+          )}
+          {open && <button onClick={onReset}>Reset fleets</button>}
+          <button className={open ? '' : 'primary'} onClick={() => setOpen(!open)}>
+            {open ? 'Done' : 'Edit fleets'}
+          </button>
+        </>
+      }
     >
-      <p className="muted small fleet-editor-hint">Choose designs and numbers for each task force. The engagement below restarts when you change them.</p>
-      <div className="fleet-editor-grid">
-        <SideEditor side={0} fleet={fleets[0]} designs={designs} onChange={(f) => update(0, f)} />
-        <SideEditor side={1} fleet={fleets[1]} designs={designs} onChange={(f) => update(1, f)} />
-      </div>
+      {open && (
+        <>
+          <p className="muted small fleet-editor-hint">
+            Choose designs and numbers for each task force. The engagement below restarts when you change them.
+          </p>
+          <div className="fleet-editor-grid">
+            <SideEditor side={0} fleet={fleets[0]} designs={designs} onChange={(f) => update(0, f)} />
+            <SideEditor side={1} fleet={fleets[1]} designs={designs} onChange={(f) => update(1, f)} />
+          </div>
+        </>
+      )}
       {problems.length > 0 && (
         <ul className="problems">
           {problems.map((p) => (

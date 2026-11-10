@@ -15,6 +15,7 @@ import {
 } from '../sim/battle';
 import { createRng, rngFromState } from '../sim/rng';
 import { ShipSilhouette, silhouetteFor } from './art/ShipSilhouette';
+import { groupShips, type ShipGroup } from './battleGroups';
 import { Bar, Frame } from './components';
 
 interface Run {
@@ -79,11 +80,16 @@ export function BattleView({ setup }: { setup: BattleSetup }) {
         <div className="battle-header-grid">
           <SideBanner battle={battle} side={0} />
           <div className="battle-clock">
-            <div className="clock-label">Naval engagement</div>
-            <div className="clock-hour">
-              Hour <span>{battle.hour}</span>
-              <span className="muted"> / {BATTLE_CONFIG.maxHours}</span>
-            </div>
+            {battle.result ? (
+              <div className={`result-inline ${battle.result.winner === 'draw' ? 'draw' : `side-${battle.result.winner}`}`}>
+                {battle.result.winner === 'draw' ? 'Inconclusive' : `${battle.sides[battle.result.winner].name} victorious`}
+              </div>
+            ) : (
+              <div className="clock-hour">
+                Hour <span>{battle.hour}</span>
+                <span className="muted"> / {BATTLE_CONFIG.maxHours}</span>
+              </div>
+            )}
             <div className="battle-controls">
               <button onClick={() => setRun(advance)} disabled={over} title="Advance one hour">
                 Step
@@ -102,33 +108,27 @@ export function BattleView({ setup }: { setup: BattleSetup }) {
           <SideBanner battle={battle} side={1} />
         </div>
         <TugBars battle={battle} />
+        {battle.result && (
+          <div className="result-reason">
+            After {battle.result.hours} hours. {battle.result.reason}
+          </div>
+        )}
         <div className="seed-row">
           <label>
-            Seed{' '}
-            <input type="number" value={seed} onChange={(e) => restart(Number(e.target.value) || 0)} />
+            Seed <input type="number" value={seed} onChange={(e) => restart(Number(e.target.value) || 0)} />
           </label>
-          <button onClick={() => restart(seed)}>Restart</button>
-          <button onClick={() => restart(randomSeed())}>New random battle</button>
+          <button className="small-button" onClick={() => restart(seed)}>
+            Restart
+          </button>
+          <button className="small-button" onClick={() => restart(randomSeed())}>
+            Random
+          </button>
         </div>
       </Frame>
 
-      {battle.result && (
-        <div className={`result-banner ${battle.result.winner === 'draw' ? 'draw' : `side-${battle.result.winner}`}`}>
-          <div className="result-title">
-            {battle.result.winner === 'draw' ? 'Inconclusive' : `Victory for ${battle.sides[battle.result.winner].name}`}
-          </div>
-          <div className="result-sub">
-            After {battle.result.hours} hours. {battle.result.reason}
-          </div>
-        </div>
-      )}
+      <EngagementBoard battle={battle} />
 
-      <div className="battle-field">
-        <FleetPanel battle={battle} side={0} />
-        <FleetPanel battle={battle} side={1} />
-      </div>
-
-      <div className="battle-lower">
+      <div className={`battle-lower ${battle.result ? 'with-report' : ''}`}>
         <Dispatch battle={battle} />
         {battle.result && <Report battle={battle} />}
       </div>
@@ -195,59 +195,108 @@ function TugBars({ battle }: { battle: BattleState }) {
   );
 }
 
-function FleetPanel({ battle, side }: { battle: BattleState; side: SideIndex }) {
-  const ships = battle.ships.filter((s) => s.side === side);
-  const activeScreens = ships.filter((s) => s.status === 'active' && s.stats.line === 'screen').length;
-  const capitals = ships.filter((s) => isPresent(s) && s.stats.line === 'capital').length;
-  const ratio = screeningRatio(BATTLE_CONFIG, activeScreens, capitals);
-  const sideState = battle.sides[side];
-  const threshold = AGGRESSIVENESS[sideState.aggressiveness].retreatThreshold;
+const LINES: { line: 'capital' | 'screen'; title: string }[] = [
+  { line: 'capital', title: 'Capital ships' },
+  { line: 'screen', title: 'Screens' },
+];
+
+/** Both fleets side by side, one row per battle line, ships of a class condensed into one chip. */
+function EngagementBoard({ battle }: { battle: BattleState }) {
+  const [open, setOpen] = useState<string | null>(null);
+  const screening = ([0, 1] as const).map((side) => {
+    const ships = battle.ships.filter((s) => s.side === side);
+    const screens = ships.filter((s) => s.status === 'active' && s.stats.line === 'screen').length;
+    const capitals = ships.filter((s) => isPresent(s) && s.stats.line === 'capital').length;
+    return { ratio: screeningRatio(BATTLE_CONFIG, screens, capitals), screens, capitals };
+  });
+  const rows = LINES.filter(({ line }) => battle.ships.some((s) => s.stats.line === line));
   return (
-    <Frame
-      className={`fleet-panel side-${side}`}
-      title={sideState.name}
-      actions={
-        <span className="fleet-panel-meta">
-          <span title={`${activeScreens} screens for ${capitals} capitals; target ${BATTLE_CONFIG.screening.screensPerCapital} per capital`}>
-            Screening <strong className={ratio >= 1 ? 'better' : ratio < 0.5 ? 'worse' : ''}>{Math.round(ratio * 100)}%</strong>
-          </span>
-          <span>Retreat below {Math.round(threshold * 100)}%</span>
-        </span>
-      }
-    >
-      <LineRow title="Capital ships" ships={ships.filter((s) => s.stats.line === 'capital')} flip={side === 1} />
-      <LineRow title="Screens" ships={ships.filter((s) => s.stats.line === 'screen')} flip={side === 1} />
+    <Frame className="board" title="Engagement">
+      {rows.map(({ line, title }) => (
+        <div key={line} className="board-row">
+          <GroupCell battle={battle} side={0} line={line} open={open} setOpen={setOpen} />
+          <div className="board-label">
+            <div className="board-label-title">{title}</div>
+            {line === 'screen' && (
+              <div className="board-label-sub" title={`Target ${BATTLE_CONFIG.screening.screensPerCapital} screens per capital`}>
+                <span className="side-0-text">{pctText(screening[0]!.ratio)}</span>
+                <span className="muted"> screening </span>
+                <span className="side-1-text">{pctText(screening[1]!.ratio)}</span>
+              </div>
+            )}
+          </div>
+          <GroupCell battle={battle} side={1} line={line} open={open} setOpen={setOpen} />
+        </div>
+      ))}
+      <div className="board-legend muted">
+        Big number: ships still fighting. <span className="st-retreat">↩</span> retreating{' '}
+        <span className="st-sunk">†</span> sunk <span className="st-escaped">⇥</span> escaped ·{' '}
+        <span className="legend-hp">■</span> HP <span className="legend-org">■</span> organisation · click a class to see its ships
+      </div>
     </Frame>
   );
 }
 
-function LineRow({ title, ships, flip }: { title: string; ships: ShipState[]; flip: boolean }) {
-  if (ships.length === 0) return null;
+const pctText = (n: number) => `${Math.round(n * 100)}%`;
+
+function GroupCell({
+  battle,
+  side,
+  line,
+  open,
+  setOpen,
+}: {
+  battle: BattleState;
+  side: SideIndex;
+  line: 'capital' | 'screen';
+  open: string | null;
+  setOpen: (k: string | null) => void;
+}) {
+  const groups = groupShips(battle, side, line);
   return (
-    <div className="line">
-      <div className="line-title">{title}</div>
-      <div className="ships">
-        {ships.map((s) => (
-          <ShipTile key={s.id} ship={s} flip={flip} />
-        ))}
-      </div>
+    <div className={`board-cell side-${side}`}>
+      {groups.length === 0 && <span className="muted small board-empty">None</span>}
+      {groups.map((g) => (
+        <GroupChip key={g.key} group={g} open={open === g.key} onToggle={() => setOpen(open === g.key ? null : g.key)} />
+      ))}
     </div>
   );
 }
 
-function ShipTile({ ship, flip }: { ship: ShipState; flip: boolean }) {
-  const hp = ship.hp / ship.stats.hp;
-  const org = ship.org / ship.stats.org;
+function GroupChip({ group: g, open, onToggle }: { group: ShipGroup; open: boolean; onToggle: () => void }) {
+  const gone = g.active + g.retreating === 0;
+  const flip = g.side === 1;
   return (
-    <div className={`ship-tile status-${ship.status}`} title={statTooltip(ship)}>
-      <div className="ship-tile-head">
-        <span className="ship-name">{ship.name}</span>
-        {ship.status !== 'active' && <span className="ship-status">{statusLabel(ship)}</span>}
-      </div>
-      <ShipSilhouette kind={silhouetteFor(ship.hullClass, ship.stats.line)} flip={flip} className="ship-tile-sil" />
-      <div className="ship-class">{ship.className}</div>
-      <Bar kind="hp" value={hp} title={`HP ${Math.round(ship.hp)}/${ship.stats.hp}`} />
-      <Bar kind="org" value={org} title={`Organisation ${Math.round(ship.org)}/${ship.stats.org}`} />
+    <div className={`group ${open ? 'open' : ''} ${gone ? 'gone' : ''}`}>
+      <button className="group-chip" onClick={onToggle} title={`${g.className}: ${g.active} of ${g.ships.length} still fighting. Click for details.`}>
+        <ShipSilhouette kind={silhouetteFor(g.hullClass, g.line)} flip={flip} className="group-sil" />
+        <span className="group-count">
+          {g.active}
+          {g.active !== g.ships.length && <span className="group-total">/{g.ships.length}</span>}
+        </span>
+        <span className="group-name">{g.className}</span>
+        <span className="group-status">
+          {g.retreating > 0 && <span className="st-retreat" title="Retreating">↩{g.retreating}</span>}
+          {g.sunk > 0 && <span className="st-sunk" title="Sunk">†{g.sunk}</span>}
+          {g.escaped > 0 && <span className="st-escaped" title="Escaped">⇥{g.escaped}</span>}
+        </span>
+        <span className="group-bars">
+          <Bar kind="hp" value={g.hpFrac} title={`HP ${Math.round(g.hpFrac * 100)}% (ships still in battle)`} />
+          <Bar kind="org" value={g.orgFrac} title={`Organisation ${Math.round(g.orgFrac * 100)}%`} />
+        </span>
+      </button>
+      {open && (
+        <div className="group-detail">
+          {g.ships.map((s) => (
+            <div key={s.id} className={`group-ship status-${s.status}`} title={statTooltip(s)}>
+              <span className="group-ship-name">{s.name}</span>
+              <span className="group-ship-status">{s.status === 'active' ? '' : statusLabel(s)}</span>
+              <Bar kind="hp" value={s.hp / s.stats.hp} title={`HP ${Math.round(s.hp)}/${s.stats.hp}`} />
+              <Bar kind="org" value={s.org / s.stats.org} title={`Organisation ${Math.round(s.org)}/${s.stats.org}`} />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
