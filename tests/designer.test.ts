@@ -225,6 +225,8 @@ describe('designs in battle', () => {
     expect(setup.sides[0].ships[2]!.name).toBe('Heavy cruiser 1915 1'); // names ran out
     const bb = PRESET_DESIGNS.find((p) => p.id === 'preset_bb_1915')!;
     expect(setup.sides[0].ships[0]!.stats).toEqual(deriveStats(DEFAULT_CATALOG, bb));
+    expect(setup.sides[0].ships[0]!.hullClass).toBe('battleship');
+    expect(createBattle(setup).ships[0]!.hullClass).toBe('battleship');
   });
 
   it('skips unknown and invalid designs and reports why', () => {

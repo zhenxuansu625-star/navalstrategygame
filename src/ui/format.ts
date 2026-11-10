@@ -18,8 +18,11 @@ export function formatModuleStats(m: Module): string {
   return parts.join(', ');
 }
 
+export type StatGroup = 'combat' | 'defence' | 'mobility';
+
 export interface StatRow {
   key: NumericStatKey;
+  group: StatGroup;
   label: string;
   /** 1 if higher is better, -1 if lower is better, 0 if neutral. */
   better: 1 | -1 | 0;
@@ -29,24 +32,33 @@ export interface StatRow {
 }
 
 export const STAT_ROWS: StatRow[] = [
-  { key: 'hp', label: 'HP', better: 1 },
-  { key: 'org', label: 'Organisation', better: 1 },
-  { key: 'armour', label: 'Armour', better: 1 },
-  { key: 'lightAttack', label: 'Light attack', better: 1 },
-  { key: 'lightPiercing', label: 'Light piercing', better: 1 },
-  { key: 'heavyAttack', label: 'Heavy attack', better: 1 },
-  { key: 'heavyPiercing', label: 'Heavy piercing', better: 1 },
-  { key: 'torpedoAttack', label: 'Torpedo attack', better: 1 },
-  { key: 'torpedoPiercing', label: 'Torpedo piercing', better: 1 },
-  { key: 'fireControl', label: 'Fire control (hit)', better: 1, format: (v) => `+${pct(v)}` },
-  { key: 'speed', label: 'Speed (kn)', better: 1 },
-  { key: 'visibility', label: 'Visibility', better: -1 },
-  { key: 'aa', label: 'AA', better: 1, inactive: true },
-  { key: 'surfaceDetection', label: 'Surface detection', better: 1, inactive: true },
-  { key: 'subDetection', label: 'Sub detection', better: 1, inactive: true },
+  { key: 'hp', group: 'defence', label: 'HP', better: 1 },
+  { key: 'org', group: 'defence', label: 'Organisation', better: 1 },
+  { key: 'armour', group: 'defence', label: 'Armour', better: 1 },
+  { key: 'lightAttack', group: 'combat', label: 'Light attack', better: 1 },
+  { key: 'lightPiercing', group: 'combat', label: 'Light piercing', better: 1 },
+  { key: 'heavyAttack', group: 'combat', label: 'Heavy attack', better: 1 },
+  { key: 'heavyPiercing', group: 'combat', label: 'Heavy piercing', better: 1 },
+  { key: 'torpedoAttack', group: 'combat', label: 'Torpedo attack', better: 1 },
+  { key: 'torpedoPiercing', group: 'combat', label: 'Torpedo piercing', better: 1 },
+  { key: 'fireControl', group: 'combat', label: 'Fire control (hit)', better: 1, format: (v) => `+${pct(v)}` },
+  { key: 'speed', group: 'mobility', label: 'Speed (kn)', better: 1 },
+  { key: 'visibility', group: 'mobility', label: 'Visibility', better: -1 },
+  { key: 'aa', group: 'mobility', label: 'AA', better: 1, inactive: true },
+  { key: 'surfaceDetection', group: 'mobility', label: 'Surface detection', better: 1, inactive: true },
+  { key: 'subDetection', group: 'mobility', label: 'Sub detection', better: 1, inactive: true },
 ];
 
 export function statValue(stats: DesignStats, row: StatRow): string {
   const v = stats[row.key];
   return row.format ? row.format(v) : String(Math.round(v * 10) / 10);
 }
+
+export const STAT_GROUP_TITLES: Record<StatGroup, string> = {
+  combat: 'Combat',
+  defence: 'Defence',
+  mobility: 'Mobility and detection',
+};
+
+const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI'];
+export const roman = (n: number) => ROMAN[n] ?? String(n);

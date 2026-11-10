@@ -44,11 +44,12 @@ function buildSide(
       continue;
     }
     const stats = deriveStats(catalog, design);
+    const hullClass = catalog.hulls.get(design.hullId)!.hullClass;
     for (let i = 0; i < Math.max(0, Math.floor(entry.count)); i++) {
       const n = (perDesign.get(design.id) ?? 0) + 1;
       perDesign.set(design.id, n);
       const name = names[ships.length] ?? `${design.name} ${n}`;
-      ships.push({ name, className: design.name, stats: { ...stats } });
+      ships.push({ name, className: design.name, hullClass, stats: { ...stats } });
     }
   }
   return { name: fleet.name, aggressiveness: fleet.aggressiveness, ships };

@@ -33,6 +33,7 @@ export function createBattle(setup: BattleSetup): BattleState {
         id: `${sideIndex}-${i}`,
         name: s.name,
         className: s.className,
+        ...(s.hullClass ? { hullClass: s.hullClass } : {}),
         side: sideIndex as SideIndex,
         stats: { ...s.stats },
         hp: s.stats.hp,

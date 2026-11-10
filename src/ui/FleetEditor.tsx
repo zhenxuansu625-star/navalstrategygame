@@ -1,6 +1,8 @@
 import { AGGRESSIVENESS, BATTLE_CONFIG, type AggressivenessId } from '../data/battle';
 import { screeningRatio } from '../sim/battle';
 import { DEFAULT_CATALOG, deriveStats, isValidDesign, type Design, type FleetSetup } from '../sim/designer';
+import { ShipSilhouette } from './art/ShipSilhouette';
+import { Frame } from './components';
 import { pct } from './format';
 
 interface Props {
@@ -18,13 +20,13 @@ export function FleetEditor({ fleets, setFleets, designs, problems, onReset }: P
     setFleets(next);
   };
   return (
-    <section className="fleet-editor">
-      <div className="fleet-editor-head">
-        <h2>Fleets</h2>
-        <span className="muted">Pick designs and counts; the battle below restarts when the fleets change.</span>
-        <button onClick={onReset}>Reset to default fleets</button>
-      </div>
-      <div className="fleets">
+    <Frame
+      className="fleet-editor"
+      title="Order of battle"
+      actions={<button onClick={onReset}>Reset fleets</button>}
+    >
+      <p className="muted small fleet-editor-hint">Choose designs and numbers for each task force. The engagement below restarts when you change them.</p>
+      <div className="fleet-editor-grid">
         <SideEditor side={0} fleet={fleets[0]} designs={designs} onChange={(f) => update(0, f)} />
         <SideEditor side={1} fleet={fleets[1]} designs={designs} onChange={(f) => update(1, f)} />
       </div>
@@ -35,7 +37,7 @@ export function FleetEditor({ fleets, setFleets, designs, problems, onReset }: P
           ))}
         </ul>
       )}
-    </section>
+    </Frame>
   );
 }
 
@@ -63,7 +65,7 @@ function SideEditor({
     onChange({ ...fleet, ships: fleet.ships.map((e, j) => (j === i ? { ...e, ...patch } : e)) });
 
   return (
-    <div className={`fleet side-${side}`}>
+    <div className={`task-force side-${side}`}>
       <div className="side-head">
         <input className="side-name" value={fleet.name} onChange={(e) => onChange({ ...fleet, name: e.target.value })} />
         <select
@@ -77,7 +79,7 @@ function SideEditor({
           ))}
         </select>
       </div>
-      <div className="fleet-meta">
+      <div className="task-force-meta">
         <span>{screens + capitals} ships</span>
         <span>{capitals} capitals · {screens} screens</span>
         <span>
@@ -86,6 +88,10 @@ function SideEditor({
       </div>
       {fleet.ships.map((entry, i) => (
         <div className="fleet-row" key={i}>
+          {(() => {
+            const hull = byId.get(entry.designId) && DEFAULT_CATALOG.hulls.get(byId.get(entry.designId)!.hullId);
+            return hull ? <ShipSilhouette kind={hull.hullClass} flip={side === 1} className="fleet-row-sil" /> : <span className="fleet-row-sil" />;
+          })()}
           <select value={entry.designId} onChange={(e) => setEntry(i, { designId: e.target.value })}>
             {!byId.has(entry.designId) && <option value={entry.designId}>(deleted design)</option>}
             {designs.map((d) => (
@@ -102,13 +108,18 @@ function SideEditor({
             value={entry.count}
             onChange={(e) => setEntry(i, { count: Math.max(0, Math.min(30, Math.floor(Number(e.target.value) || 0))) })}
           />
-          <button className="danger" onClick={() => onChange({ ...fleet, ships: fleet.ships.filter((_, j) => j !== i) })}>
-            Remove
+          <button
+            className="danger icon-button"
+            title="Remove"
+            aria-label="Remove"
+            onClick={() => onChange({ ...fleet, ships: fleet.ships.filter((_, j) => j !== i) })}
+          >
+            ✕
           </button>
         </div>
       ))}
-      <button onClick={() => onChange({ ...fleet, ships: [...fleet.ships, { designId: designs[0]!.id, count: 1 }] })}>
-        Add ships
+      <button className="add-ships" onClick={() => onChange({ ...fleet, ships: [...fleet.ships, { designId: designs[0]!.id, count: 1 }] })}>
+        + Add ships
       </button>
     </div>
   );

@@ -14,6 +14,8 @@ import {
   type SideIndex,
 } from '../sim/battle';
 import { createRng, rngFromState } from '../sim/rng';
+import { ShipSilhouette, silhouetteFor } from './art/ShipSilhouette';
+import { Bar, Frame } from './components';
 
 interface Run {
   battle: BattleState;
@@ -31,18 +33,20 @@ function advance(run: Run): Run {
 }
 
 const randomSeed = () => Math.floor(Math.random() * 1_000_000);
+const SPEEDS = [900, 450, 150];
 
 export function BattleView({ setup }: { setup: BattleSetup }) {
   const [seed, setSeed] = useState(1);
   const [run, setRun] = useState<Run>(() => newRun(setup, 1));
   const [playing, setPlaying] = useState(false);
+  const [speed, setSpeed] = useState(1);
   const { battle } = run;
 
   // Restart whenever the fleets change.
   useEffect(() => {
     setRun(newRun(setup, seed));
     setPlaying(false);
-  }, [setup]);
+  }, [setup]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!playing) return;
@@ -50,9 +54,9 @@ export function BattleView({ setup }: { setup: BattleSetup }) {
       setPlaying(false);
       return;
     }
-    const t = setTimeout(() => setRun(advance), 450);
+    const t = setTimeout(() => setRun(advance), SPEEDS[speed]);
     return () => clearTimeout(t);
-  }, [playing, battle]);
+  }, [playing, battle, speed]);
 
   const restart = (s: number) => {
     setSeed(s);
@@ -67,50 +71,126 @@ export function BattleView({ setup }: { setup: BattleSetup }) {
     setPlaying(false);
   };
 
+  const over = !!battle.result;
+
   return (
-    <div className="battle">
-      <div className="controls">
-        <label>
-          Seed{' '}
-          <input
-            type="number"
-            value={seed}
-            onChange={(e) => restart(Number(e.target.value) || 0)}
-          />
-        </label>
-        <button onClick={() => restart(randomSeed())}>New random battle</button>
-        <button onClick={() => restart(seed)}>Restart</button>
-        <span className="divider" />
-        <button onClick={() => setRun(advance)} disabled={!!battle.result}>
-          Step 1 hour
-        </button>
-        <button onClick={() => setPlaying((p) => !p)} disabled={!!battle.result}>
-          {playing ? 'Pause' : 'Play'}
-        </button>
-        <button onClick={runToEnd} disabled={!!battle.result}>
-          Resolve
-        </button>
-        <span className="hour">Hour {battle.hour}</span>
-      </div>
+    <div className="battle-screen">
+      <Frame className="battle-header">
+        <div className="battle-header-grid">
+          <SideBanner battle={battle} side={0} />
+          <div className="battle-clock">
+            <div className="clock-label">Naval engagement</div>
+            <div className="clock-hour">
+              Hour <span>{battle.hour}</span>
+              <span className="muted"> / {BATTLE_CONFIG.maxHours}</span>
+            </div>
+            <div className="battle-controls">
+              <button onClick={() => setRun(advance)} disabled={over} title="Advance one hour">
+                Step
+              </button>
+              <button className="primary" onClick={() => setPlaying((p) => !p)} disabled={over}>
+                {playing ? '❚❚ Pause' : '▶ Play'}
+              </button>
+              <button onClick={() => setSpeed((s) => (s + 1) % SPEEDS.length)} title="Playback speed">
+                {'»'.repeat(speed + 1)}
+              </button>
+              <button onClick={runToEnd} disabled={over} title="Resolve the rest of the battle instantly">
+                Resolve
+              </button>
+            </div>
+          </div>
+          <SideBanner battle={battle} side={1} />
+        </div>
+        <TugBars battle={battle} />
+        <div className="seed-row">
+          <label>
+            Seed{' '}
+            <input type="number" value={seed} onChange={(e) => restart(Number(e.target.value) || 0)} />
+          </label>
+          <button onClick={() => restart(seed)}>Restart</button>
+          <button onClick={() => restart(randomSeed())}>New random battle</button>
+        </div>
+      </Frame>
 
       {battle.result && (
-        <div className={`result ${battle.result.winner === 'draw' ? 'draw' : `side-${battle.result.winner}`}`}>
-          {battle.result.winner === 'draw'
-            ? 'Inconclusive'
-            : `${battle.sides[battle.result.winner].name} wins`}{' '}
-          after {battle.result.hours} hours. {battle.result.reason}
+        <div className={`result-banner ${battle.result.winner === 'draw' ? 'draw' : `side-${battle.result.winner}`}`}>
+          <div className="result-title">
+            {battle.result.winner === 'draw' ? 'Inconclusive' : `Victory for ${battle.sides[battle.result.winner].name}`}
+          </div>
+          <div className="result-sub">
+            After {battle.result.hours} hours. {battle.result.reason}
+          </div>
         </div>
       )}
 
-      <div className="fleets">
+      <div className="battle-field">
         <FleetPanel battle={battle} side={0} />
         <FleetPanel battle={battle} side={1} />
       </div>
 
-      <div className="lower">
-        <BattleLog battle={battle} />
+      <div className="battle-lower">
+        <Dispatch battle={battle} />
         {battle.result && <Report battle={battle} />}
       </div>
+    </div>
+  );
+}
+
+function sideTotals(battle: BattleState, side: SideIndex) {
+  let hp = 0;
+  let org = 0;
+  let engaged = 0;
+  let total = 0;
+  for (const s of battle.ships) {
+    if (s.side !== side) continue;
+    total++;
+    if (s.status === 'active') engaged++;
+    if (isPresent(s)) {
+      hp += s.hp;
+      org += s.org;
+    }
+  }
+  return { hp, org, engaged, total };
+}
+
+function SideBanner({ battle, side }: { battle: BattleState; side: SideIndex }) {
+  const s = battle.sides[side];
+  const t = sideTotals(battle, side);
+  const lost = battle.ships.filter((x) => x.side === side && x.status === 'sunk').length;
+  return (
+    <div className={`side-banner side-${side}`}>
+      <div className="side-flag" />
+      <div>
+        <div className="side-banner-name">{s.name}</div>
+        <div className="side-banner-meta">
+          {t.engaged}/{t.total} engaged · {lost} sunk · {AGGRESSIVENESS[s.aggressiveness].label}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TugBars({ battle }: { battle: BattleState }) {
+  const a = sideTotals(battle, 0);
+  const b = sideTotals(battle, 1);
+  const row = (label: string, x: number, y: number) => {
+    const share = x + y > 0 ? x / (x + y) : 0.5;
+    return (
+      <div className="tug">
+        <span className="tug-value">{Math.round(x)}</span>
+        <div className="tug-bar" title={`${label}: ${Math.round(share * 100)}% vs ${Math.round((1 - share) * 100)}%`}>
+          <div className="tug-fill side-0" style={{ width: `${share * 100}%` }} />
+          <div className="tug-fill side-1" style={{ width: `${(1 - share) * 100}%` }} />
+          <span className="tug-label">{label}</span>
+        </div>
+        <span className="tug-value">{Math.round(y)}</span>
+      </div>
+    );
+  };
+  return (
+    <div className="tugs">
+      {row('Strength', a.hp, b.hp)}
+      {row('Organisation', a.org, b.org)}
     </div>
   );
 }
@@ -121,47 +201,53 @@ function FleetPanel({ battle, side }: { battle: BattleState; side: SideIndex }) 
   const capitals = ships.filter((s) => isPresent(s) && s.stats.line === 'capital').length;
   const ratio = screeningRatio(BATTLE_CONFIG, activeScreens, capitals);
   const sideState = battle.sides[side];
+  const threshold = AGGRESSIVENESS[sideState.aggressiveness].retreatThreshold;
   return (
-    <section className={`fleet side-${side}`}>
-      <h2>{sideState.name}</h2>
-      <div className="fleet-meta">
-        <span>{AGGRESSIVENESS[sideState.aggressiveness].label}: retreat below {Math.round(AGGRESSIVENESS[sideState.aggressiveness].retreatThreshold * 100)}%</span>
-        <span title={`${activeScreens} active screens for ${capitals} capitals (target ${BATTLE_CONFIG.screening.screensPerCapital} per capital)`}>
-          Screening {Math.round(ratio * 100)}%
+    <Frame
+      className={`fleet-panel side-${side}`}
+      title={sideState.name}
+      actions={
+        <span className="fleet-panel-meta">
+          <span title={`${activeScreens} screens for ${capitals} capitals; target ${BATTLE_CONFIG.screening.screensPerCapital} per capital`}>
+            Screening <strong className={ratio >= 1 ? 'better' : ratio < 0.5 ? 'worse' : ''}>{Math.round(ratio * 100)}%</strong>
+          </span>
+          <span>Retreat below {Math.round(threshold * 100)}%</span>
         </span>
-      </div>
-      <LineRow title="Capitals" ships={ships.filter((s) => s.stats.line === 'capital')} />
-      <LineRow title="Screens" ships={ships.filter((s) => s.stats.line === 'screen')} />
-    </section>
+      }
+    >
+      <LineRow title="Capital ships" ships={ships.filter((s) => s.stats.line === 'capital')} flip={side === 1} />
+      <LineRow title="Screens" ships={ships.filter((s) => s.stats.line === 'screen')} flip={side === 1} />
+    </Frame>
   );
 }
 
-function LineRow({ title, ships }: { title: string; ships: ShipState[] }) {
+function LineRow({ title, ships, flip }: { title: string; ships: ShipState[]; flip: boolean }) {
   if (ships.length === 0) return null;
   return (
     <div className="line">
-      <h3>{title}</h3>
+      <div className="line-title">{title}</div>
       <div className="ships">
         {ships.map((s) => (
-          <ShipCard key={s.id} ship={s} />
+          <ShipTile key={s.id} ship={s} flip={flip} />
         ))}
       </div>
     </div>
   );
 }
 
-function ShipCard({ ship }: { ship: ShipState }) {
+function ShipTile({ ship, flip }: { ship: ShipState; flip: boolean }) {
   const hp = ship.hp / ship.stats.hp;
   const org = ship.org / ship.stats.org;
   return (
-    <div className={`ship status-${ship.status}`} title={statTooltip(ship)}>
-      <div className="ship-head">
+    <div className={`ship-tile status-${ship.status}`} title={statTooltip(ship)}>
+      <div className="ship-tile-head">
         <span className="ship-name">{ship.name}</span>
-        <span className="ship-class">{ship.className}</span>
+        {ship.status !== 'active' && <span className="ship-status">{statusLabel(ship)}</span>}
       </div>
-      <Bar label="HP" value={hp} text={`${Math.round(ship.hp)}/${ship.stats.hp}`} kind="hp" />
-      <Bar label="Org" value={org} text={`${Math.round(ship.org)}/${ship.stats.org}`} kind="org" />
-      {ship.status !== 'active' && <div className="badge">{statusLabel(ship)}</div>}
+      <ShipSilhouette kind={silhouetteFor(ship.hullClass, ship.stats.line)} flip={flip} className="ship-tile-sil" />
+      <div className="ship-class">{ship.className}</div>
+      <Bar kind="hp" value={hp} title={`HP ${Math.round(ship.hp)}/${ship.stats.hp}`} />
+      <Bar kind="org" value={org} title={`Organisation ${Math.round(ship.org)}/${ship.stats.org}`} />
     </div>
   );
 }
@@ -169,11 +255,11 @@ function ShipCard({ ship }: { ship: ShipState }) {
 function statusLabel(ship: ShipState): string {
   switch (ship.status) {
     case 'retreating':
-      return ship.retreatReason === 'org' ? 'Retreating (org)' : 'Retreating (damage)';
+      return ship.retreatReason === 'org' ? 'Retreating' : 'Withdrawing';
     case 'escaped':
-      return `Escaped (h${ship.leftAtHour})`;
+      return `Escaped h${ship.leftAtHour}`;
     case 'sunk':
-      return `Sunk (h${ship.leftAtHour})`;
+      return `Sunk h${ship.leftAtHour}`;
     default:
       return '';
   }
@@ -182,6 +268,8 @@ function statusLabel(ship: ShipState): string {
 function statTooltip(ship: ShipState): string {
   const s = ship.stats;
   return [
+    `${ship.name} (${ship.className})`,
+    `HP ${Math.round(ship.hp)}/${s.hp}, organisation ${Math.round(ship.org)}/${s.org}`,
     `Armour ${s.armour}`,
     `Light ${s.lightAttack} (pierce ${s.lightPiercing})`,
     `Heavy ${s.heavyAttack} (pierce ${s.heavyPiercing})`,
@@ -191,20 +279,7 @@ function statTooltip(ship: ShipState): string {
   ].join('\n');
 }
 
-function Bar({ label, value, text, kind }: { label: string; value: number; text: string; kind: 'hp' | 'org' }) {
-  const pct = Math.max(0, Math.min(1, value)) * 100;
-  return (
-    <div className="bar-row">
-      <span className="bar-label">{label}</span>
-      <div className={`bar ${kind}`}>
-        <div className="bar-fill" style={{ width: `${pct}%` }} />
-      </div>
-      <span className="bar-text">{text}</span>
-    </div>
-  );
-}
-
-function BattleLog({ battle }: { battle: BattleState }) {
+function Dispatch({ battle }: { battle: BattleState }) {
   const hours = useMemo(() => [...logByHour(battle.log).entries()], [battle.log]);
   const bodyRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -212,9 +287,12 @@ function BattleLog({ battle }: { battle: BattleState }) {
     if (el) el.scrollTop = el.scrollHeight;
   }, [battle.log.length]);
   return (
-    <section className="log">
-      <h2>Hourly log</h2>
-      <div className="log-body" ref={bodyRef}>
+    <section className="dispatch">
+      <div className="dispatch-head">
+        <span>Combat log</span>
+        <span className="dispatch-stamp">Admiralty · urgent</span>
+      </div>
+      <div className="dispatch-body" ref={bodyRef}>
         {hours.map(([hour, events]) => (
           <div key={hour} className="log-hour">
             <div className="log-hour-title">Hour {hour}</div>
@@ -237,34 +315,35 @@ function eventClass(e: LogEvent): string {
 
 function Report({ battle }: { battle: BattleState }) {
   return (
-    <section className="report">
-      <h2>After-action report</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Ship</th>
-            <th>Fate</th>
-            <th>Shots</th>
-            <th>Hits</th>
-            <th title="Hits that failed to pierce armour">Bounced</th>
-            <th>Damage dealt</th>
-          </tr>
-        </thead>
-        <tbody>
-          {battle.ships.map((s) => (
-            <tr key={s.id} className={`side-${s.side}`}>
-              <td>
-                {s.name} <span className="muted">{s.className}</span>
-              </td>
-              <td>{s.status === 'active' ? 'Afloat' : statusLabel(s)}</td>
-              <td>{s.shotsFired}</td>
-              <td>{s.hits}</td>
-              <td>{s.nonPiercingHits}</td>
-              <td>{Math.round(s.damageDealt)}</td>
+    <Frame title="After-action report" className="report">
+      <div className="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Ship</th>
+              <th>Fate</th>
+              <th>Shots</th>
+              <th>Hits</th>
+              <th title="Hits that failed to pierce armour">Bounced</th>
+              <th>Damage</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </section>
+          </thead>
+          <tbody>
+            {battle.ships.map((s) => (
+              <tr key={s.id} className={`side-${s.side}`}>
+                <td>
+                  {s.name} <span className="muted">{s.className}</span>
+                </td>
+                <td className={s.status === 'sunk' ? 'worse' : ''}>{s.status === 'active' ? 'Afloat' : statusLabel(s)}</td>
+                <td>{s.shotsFired}</td>
+                <td>{s.hits}</td>
+                <td>{s.nonPiercingHits}</td>
+                <td>{Math.round(s.damageDealt)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Frame>
   );
 }

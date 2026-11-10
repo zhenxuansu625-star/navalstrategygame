@@ -34,6 +34,8 @@ export interface ShipState {
   name: string;
   /** Class or design name shown in the log, e.g. "Battleship". */
   className: string;
+  /** Hull class, used only to pick the ship's silhouette in the UI. */
+  hullClass?: string;
   side: SideIndex;
   stats: ShipStats;
   hp: number;
@@ -106,6 +108,7 @@ export type BattleOrders = Record<string, never>;
 export interface ShipSetup {
   name: string;
   className: string;
+  hullClass?: string;
   stats: ShipStats;
 }
 

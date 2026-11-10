@@ -27,8 +27,13 @@ export function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <h1>Naval Strategy Game</h1>
-        <span className="subtitle">Slice 2 · ship designer and battle sandbox</span>
+        <div className="brand">
+          <span className="brand-emblem" aria-hidden="true">⚓</span>
+          <div>
+            <h1>Naval Strategy Game</h1>
+            <span className="subtitle">Admiralty · 1890–1945</span>
+          </div>
+        </div>
         <nav className="tabs">
           <button className={tab === 'designer' ? 'active' : ''} onClick={() => setTab('designer')}>
             Ship designer
