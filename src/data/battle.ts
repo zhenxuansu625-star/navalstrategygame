@@ -61,6 +61,30 @@ export interface BattleConfig {
     /** At full cover, chance a shot aimed at a carrier is drawn off by a capital ship. */
     carrierProtection: Record<AttackType, number>;
   };
+  submarines: {
+    /** Depth charges ignore armour: piercing of anti-submarine attacks. */
+    aswPiercing: number;
+    /** Submarines fire from close range: added to their torpedo hit chance. */
+    torpedoHitBonus: number;
+    /**
+     * Chance per hour that a hidden submarine is revealed:
+     * base (passive, or after firing) + perDetection * enemy detection - perVisibility * sub visibility.
+     */
+    revealPassive: number;
+    revealOnFire: number;
+    perDetection: number;
+    perVisibility: number;
+    revealMin: number;
+    revealMax: number;
+    /** Fleet detection = best ship's detection + this share of the rest. */
+    fleetDetectionShare: number;
+    /** Screens are this effective at intercepting a submarine's torpedoes (it attacks from below). */
+    screenProtectionFactor: number;
+    /** Added to the escape chance of a retreating submarine that is still hidden. */
+    hiddenEscapeBonus: number;
+    /** The fleets lose contact after this many hours in which nobody could fire. */
+    quietHoursLimit: number;
+  };
   air: {
     /** Carriers launch a strike when (hour - 1) is a multiple of this, i.e. hours 1, 4, 7... */
     waveInterval: number;
@@ -91,13 +115,13 @@ export interface BattleConfig {
 export const BATTLE_CONFIG: BattleConfig = {
   maxHours: 500,
   hit: {
-    base: { light: 0.35, heavy: 0.3, torpedo: 0.18 },
+    base: { light: 0.35, heavy: 0.3, torpedo: 0.18, asw: 0.35 },
     visibilityPerPoint: 0.008,
     referenceVisibility: 20,
     speedPerKnot: 0.01,
     referenceSpeed: 25,
     heavyVsScreenPenalty: 0.1,
-    fireControlApplies: { light: true, heavy: true, torpedo: false },
+    fireControlApplies: { light: true, heavy: true, torpedo: false, asw: false },
     min: 0.05,
     max: 0.9,
   },
@@ -111,23 +135,38 @@ export const BATTLE_CONFIG: BattleConfig = {
   },
   targeting: {
     lineWeight: {
-      light: { screen: 2, capital: 1, carrier: 1 },
-      heavy: { screen: 1, capital: 2, carrier: 2 },
-      torpedo: { screen: 0.5, capital: 2, carrier: 2 },
+      light: { screen: 2, capital: 1, carrier: 1, submarine: 0 },
+      heavy: { screen: 1, capital: 2, carrier: 2, submarine: 0 },
+      torpedo: { screen: 0.5, capital: 2, carrier: 2, submarine: 0 },
+      asw: { screen: 0, capital: 0, carrier: 0, submarine: 1 },
     },
     retreatingWeight: 0.5,
   },
   screening: {
     screensPerCapital: 3,
-    protection: { light: 0.6, heavy: 0.6, torpedo: 0.9 },
+    protection: { light: 0.6, heavy: 0.6, torpedo: 0.9, asw: 0 },
     capitalsPerCarrier: 1,
-    carrierProtection: { light: 0.7, heavy: 0.7, torpedo: 0.7 },
+    carrierProtection: { light: 0.7, heavy: 0.7, torpedo: 0.7, asw: 0 },
+  },
+  submarines: {
+    aswPiercing: 30,
+    torpedoHitBonus: 0.15,
+    revealPassive: 0.04,
+    revealOnFire: 0.3,
+    perDetection: 0.02,
+    perVisibility: 0.03,
+    revealMin: 0.02,
+    revealMax: 0.9,
+    fleetDetectionShare: 0.25,
+    screenProtectionFactor: 0.5,
+    hiddenEscapeBonus: 0.4,
+    quietHoursLimit: 12,
   },
   air: {
     waveInterval: 3,
     attackPerPlane: 1.5,
     piercing: 45,
-    lineWeight: { screen: 0.5, capital: 2, carrier: 3 },
+    lineWeight: { screen: 0.5, capital: 2, carrier: 3, submarine: 0 },
     fleetAaShare: 0.15,
     aaHalfDamage: 60,
     lossBase: 0.03,

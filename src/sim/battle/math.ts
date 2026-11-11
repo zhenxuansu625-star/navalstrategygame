@@ -17,6 +17,7 @@ export function hitChance(cfg: BattleConfig, attackType: AttackType, attacker: S
   p += h.visibilityPerPoint * (target.visibility - h.referenceVisibility);
   p -= h.speedPerKnot * (target.speed - h.referenceSpeed);
   if (attackType === 'heavy' && target.line === 'screen') p -= h.heavyVsScreenPenalty;
+  if (attackType === 'torpedo' && attacker.line === 'submarine') p += cfg.submarines.torpedoHitBonus;
   return clamp(p, h.min, h.max);
 }
 
@@ -100,6 +101,9 @@ export function attackOf(stats: ShipStats, type: AttackType): { attack: number; 
       return { attack: stats.heavyAttack, piercing: stats.heavyPiercing };
     case 'torpedo':
       return { attack: stats.torpedoAttack, piercing: stats.torpedoPiercing };
+    case 'asw':
+      // Piercing for depth charges comes from the config (they ignore armour).
+      return { attack: stats.aswAttack, piercing: 0 };
   }
 }
 
@@ -159,4 +163,23 @@ export function airStrike(
   const attackers = planes - shotDown;
   const attack = attackers * cfg.air.attackPerPlane * aaDamageMultiplier(cfg, effAa);
   return { ...hitDamage(cfg, attack, cfg.air.piercing, target, varianceRoll), shotDown, attackers };
+}
+
+/* ------------------------------------------------------------------ */
+/* Submarines                                                          */
+/* ------------------------------------------------------------------ */
+
+/** A fleet's ability to find submarines: its best detector plus a share of the rest. */
+export function fleetSubDetection(cfg: BattleConfig, detections: readonly number[]): number {
+  if (detections.length === 0) return 0;
+  const best = Math.max(...detections);
+  const rest = detections.reduce((a, b) => a + b, 0) - best;
+  return best + cfg.submarines.fleetDetectionShare * rest;
+}
+
+/** Hourly chance a hidden submarine is revealed. Firing gives its position away. */
+export function revealChance(cfg: BattleConfig, enemyDetection: number, subVisibility: number, fired: boolean): number {
+  const s = cfg.submarines;
+  const base = fired ? s.revealOnFire : s.revealPassive;
+  return clamp(base + s.perDetection * enemyDetection - s.perVisibility * subVisibility, s.revealMin, s.revealMax);
 }

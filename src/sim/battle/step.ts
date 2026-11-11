@@ -12,10 +12,12 @@ import {
   capitalReachChance,
   carrierReachChance,
   escapeChance,
+  fleetSubDetection,
   hitChance,
   hitDamage,
   isAirWaveHour,
   retreatReason,
+  revealChance,
 } from './math';
 import {
   ATTACK_TYPES,
@@ -39,9 +41,11 @@ export function createBattle(setup: BattleSetup): BattleState {
         ...(s.hullClass ? { hullClass: s.hullClass } : {}),
         side: sideIndex as SideIndex,
         stats: { ...s.stats },
-        hp: s.stats.hp,
-        org: s.stats.org,
+        hp: Math.min(s.stats.hp, s.hp ?? s.stats.hp),
+        org: Math.min(s.stats.org, s.org ?? s.stats.org),
         planes: s.stats.airWing ?? 0,
+        ...(s.stats.line === 'submarine' ? { hidden: true } : {}),
+        ...(s.refId ? { refId: s.refId } : {}),
         status: 'active',
         shotsFired: 0,
         hits: 0,
@@ -93,19 +97,25 @@ export function step(
   for (const ship of next.ships) {
     if (ship.status !== 'retreating') continue;
     const fastest = fastestActiveSpeed(next.ships, other(ship.side));
-    if (rng.next() < escapeChance(cfg, ship.stats.speed, fastest)) {
+    const bonus = ship.hidden ? cfg.submarines.hiddenEscapeBonus : 0;
+    if (rng.next() < Math.min(1, escapeChance(cfg, ship.stats.speed, fastest) + bonus)) {
       ship.status = 'escaped';
       ship.leftAtHour = hour;
       log.push({ hour, type: 'escaped', side: ship.side, ship: ship.name });
     }
   }
 
-  // 2. Gunfire and torpedoes, resolved against the start-of-hour picture.
+  // 2. Gunfire, torpedoes and depth charges, resolved against the start-of-hour picture.
   const pending = new Map<string, PendingDamage>();
+  const subsThatFired = new Set<string>();
+  let anyShots = false;
   for (const side of [0, 1] as const) {
     const enemySide = other(side);
-    const targets = next.ships.filter((s) => s.side === enemySide && isPresent(s));
-    if (targets.length === 0) continue;
+    const present = next.ships.filter((s) => s.side === enemySide && isPresent(s));
+    if (present.length === 0) continue;
+    // Surface weapons cannot reach submarines; depth charges can reach only those that have been found.
+    const targets = present.filter((s) => s.stats.line !== 'submarine');
+    const revealedSubs = present.filter((s) => s.stats.line === 'submarine' && !s.hidden);
     const enemyScreens = targets.filter((s) => s.status === 'active' && s.stats.line === 'screen');
     const enemyCapitals = targets.filter((s) => s.stats.line === 'capital').length;
     const enemyCarriers = targets.filter((s) => s.stats.line === 'carrier').length;
@@ -122,11 +132,14 @@ export function step(
         const { attack, piercing } = attackOf(shooter.stats, attackType);
         if (attack <= 0) continue;
 
-        let target = pickWeighted(rng, targets, (t) => targetWeight(cfg, attackType, t));
+        const pool = attackType === 'asw' ? revealedSubs : targets;
+        let target = pickWeighted(rng, pool, (t) => targetWeight(cfg, attackType, t));
         if (!target) continue;
         // Screens shield both capitals and carriers; capitals in turn shield the carriers.
-        if (target.stats.line !== 'screen' && enemyScreens.length > 0) {
-          const reach = capitalReachChance(cfg, attackType, enemyScreens.length, enemyCapitals + enemyCarriers);
+        // A submarine attacks from below, so screens are less effective against its torpedoes.
+        if (target.stats.line !== 'screen' && attackType !== 'asw' && enemyScreens.length > 0) {
+          let reach = capitalReachChance(cfg, attackType, enemyScreens.length, enemyCapitals + enemyCarriers);
+          if (shooter.stats.line === 'submarine') reach = 1 - (1 - reach) * cfg.submarines.screenProtectionFactor;
           if (rng.next() >= reach) {
             target = pickWeighted(rng, enemyScreens, (t) => t.stats.visibility) ?? target;
             screened += 1;
@@ -142,9 +155,11 @@ export function step(
 
         shots += 1;
         shooter.shotsFired += 1;
+        if (shooter.stats.line === 'submarine') subsThatFired.add(shooter.id);
         if (rng.next() >= hitChance(cfg, attackType, shooter.stats, target.stats)) continue;
 
-        const dmg = hitDamage(cfg, attack, piercing, target.stats, rng.next());
+        const effectivePiercing = attackType === 'asw' ? cfg.submarines.aswPiercing : piercing;
+        const dmg = hitDamage(cfg, attack, effectivePiercing, target.stats, rng.next());
         hits += 1;
         hpDamage += dmg.hp;
         orgDamage += dmg.org;
@@ -168,7 +183,7 @@ export function step(
               attacker: shooter.name,
               attackerClass: shooter.className,
               attackType,
-              piercing,
+              piercing: effectivePiercing,
               target: target.name,
               targetClass: target.className,
               armour: target.stats.armour,
@@ -178,6 +193,7 @@ export function step(
       }
     }
     if (shots > 0) {
+      anyShots = true;
       log.push({ hour, type: 'fire', side, shots, hits, hpDamage, orgDamage, screened });
     }
   }
@@ -193,6 +209,7 @@ export function step(
         if (carrier.side !== side || carrier.status !== 'active' || carrier.planes <= 0) continue;
         const target = pickWeighted(rng, targets, (t) => airTargetWeight(cfg, t));
         if (!target) continue;
+        anyShots = true;
         const strike = airStrike(cfg, carrier.planes, target.stats, fleetAa, rng.next());
         const launched = carrier.planes;
         carrier.planes -= strike.shotDown;
@@ -239,6 +256,18 @@ export function step(
     }
   }
 
+  // 3b. Hidden submarines may be found: firing gives their position away.
+  for (const ship of next.ships) {
+    if (!ship.hidden || !isPresent(ship)) continue;
+    const hunters = next.ships.filter((s) => s.side !== ship.side && s.status === 'active');
+    const detection = fleetSubDetection(cfg, hunters.map((s) => s.stats.subDetection));
+    const fired = subsThatFired.has(ship.id);
+    if (rng.next() < revealChance(cfg, detection, ship.stats.visibility, fired)) {
+      ship.hidden = false;
+      log.push({ hour, type: 'revealed', side: ship.side, ship: ship.name, afterFiring: fired });
+    }
+  }
+
   // 4. Damaged or shaken ships break off.
   for (const ship of next.ships) {
     if (ship.status !== 'active') continue;
@@ -260,6 +289,7 @@ export function step(
   }
 
   // 5. Is the battle over?
+  next.quietHours = anyShots ? 0 : (next.quietHours ?? 0) + 1;
   next.result = checkEnd(next, cfg);
   if (next.result) {
     log.push({ hour, type: 'end', winner: next.result.winner, reason: next.result.reason });
@@ -311,6 +341,9 @@ function checkEnd(state: BattleState, cfg: BattleConfig): BattleState['result'] 
   }
   for (const side of [0, 1] as const) {
     if (present[side] === 0) return { winner: other(side), hours, reason: howLost(side) };
+  }
+  if ((state.quietHours ?? 0) >= cfg.submarines.quietHoursLimit) {
+    return { winner: 'draw', hours, reason: 'The fleets lost contact: neither could find the other.' };
   }
   if (hours >= cfg.maxHours) {
     return { winner: 'draw', hours, reason: `Stalemate after ${hours} hours: neither fleet could finish the other.` };

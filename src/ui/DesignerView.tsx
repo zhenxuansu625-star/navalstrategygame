@@ -179,6 +179,7 @@ interface Anchor {
 
 function stageAnchors(hull: Hull): Anchor[] {
   if (hull.hullClass === 'carrier') return carrierAnchors(hull);
+  if (hull.hullClass === 'submarine') return submarineAnchors(hull);
   const kind = hull.hullClass as SilhouetteKind;
   const { p, x, deck } = silhouetteGeometry(kind);
   const turrets = [...p.turrets].sort((a, b) => b.at - a.at);
@@ -199,6 +200,19 @@ function stageAnchors(hull: Hull): Anchor[] {
   if (has('armour')) out.push({ slotId: 'armour', tx: 52, ty: bottomY, px: x(0.4), py: 46 });
   if (has('engine')) out.push({ slotId: 'engine', tx: 100, ty: bottomY, px: x(p.funnels[0]!), py: 47 });
   if (has('fireControl')) out.push({ slotId: 'fireControl', tx: 148, ty: bottomY, px: x(p.bridge.at), py: deck - p.bridge.height });
+  return out;
+}
+
+/** Submarines: bow and stern tubes on top, the engine below. */
+function submarineAnchors(hull: Hull): Anchor[] {
+  const { x, deck } = silhouetteGeometry('submarine');
+  const topY = STAGE.top + 3 + STAGE.tile / 2;
+  const bottomY = STAGE.top + STAGE.height - 3 - STAGE.tile / 2 - 6;
+  const has = (id: string) => hull.slots.some((s) => s.id === id);
+  const out: Anchor[] = [];
+  if (has('mainRear')) out.push({ slotId: 'mainRear', tx: 40, ty: topY, px: x(0.04), py: deck + 3 });
+  if (has('mainFront')) out.push({ slotId: 'mainFront', tx: 160, ty: topY, px: x(0.97), py: deck + 3 });
+  if (has('engine')) out.push({ slotId: 'engine', tx: 100, ty: bottomY, px: x(0.35), py: 46 });
   return out;
 }
 
@@ -369,7 +383,7 @@ function DesignEditor({
           <SlotRow title="Other">{hull.slots.filter((s) => !onStage.has(s.id) && (s.group === 'fixed' || s.group === 'main' || s.group === 'deck')).map((s) => tile(s))}</SlotRow>
         )}
         {secondary.length > 0 && <SlotRow title="Secondary armament">{secondary.map((s) => tile(s))}</SlotRow>}
-        {custom.length > 0 && <SlotRow title="Custom slots">{custom.map((s) => tile(s))}</SlotRow>}
+        {custom.length > 0 && <SlotRow title={hull.hullClass === 'submarine' ? 'Systems' : 'Custom slots'}>{custom.map((s) => tile(s))}</SlotRow>}
       </div>
 
       {issues.length > 0 && (
@@ -474,11 +488,11 @@ function SlotTile({
 function shortSlotLabel(slot: SlotDef): string {
   switch (slot.id) {
     case 'mainFront':
-      return 'Fore';
+      return slot.label === 'Bow tubes' ? 'Bow' : 'Fore';
     case 'mainMid':
       return 'Midship';
     case 'mainRear':
-      return 'Aft';
+      return slot.label === 'Stern tubes' ? 'Stern' : 'Aft';
     case 'fireControl':
       return 'Fire ctrl';
     case 'armour':

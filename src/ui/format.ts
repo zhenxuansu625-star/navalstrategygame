@@ -17,6 +17,7 @@ export function formatModuleStats(m: Module): string {
   if (s.surfaceDetection) parts.push(`detect +${s.surfaceDetection}`);
   if (s.subDetection) parts.push(`sub detect +${s.subDetection}`);
   if (s.airWing) parts.push(`air wing +${s.airWing}`);
+  if (s.aswAttack) parts.push(`anti-sub +${s.aswAttack}`);
   return parts.join(', ');
 }
 
@@ -46,10 +47,11 @@ export const STAT_ROWS: StatRow[] = [
   { key: 'fireControl', group: 'combat', label: 'Fire control (hit)', better: 1, format: (v) => `+${pct(v)}` },
   { key: 'airWing', group: 'combat', label: 'Strike aircraft', better: 1 },
   { key: 'aa', group: 'combat', label: 'Anti-air', better: 1 },
+  { key: 'aswAttack', group: 'combat', label: 'Anti-submarine attack', better: 1 },
   { key: 'speed', group: 'mobility', label: 'Speed (kn)', better: 1 },
   { key: 'visibility', group: 'mobility', label: 'Visibility', better: -1 },
   { key: 'surfaceDetection', group: 'mobility', label: 'Surface detection', better: 1, inactive: true },
-  { key: 'subDetection', group: 'mobility', label: 'Sub detection', better: 1, inactive: true },
+  { key: 'subDetection', group: 'mobility', label: 'Sub detection', better: 1 },
 ];
 
 export function statValue(stats: DesignStats, row: StatRow): string {
@@ -70,4 +72,5 @@ export const LINE_NAMES: Record<Line, string> = {
   capital: 'Capital ships',
   screen: 'Screens',
   carrier: 'Carriers',
+  submarine: 'Submarines',
 };

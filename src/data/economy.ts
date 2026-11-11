@@ -3,9 +3,15 @@ import type { Line } from '../sim/battle/types';
 import type { BuildingType, ResourceType } from '../sim/economy/types';
 
 export interface EconomyConfig {
-  startYears: number[];
-  defaultStartYear: number;
-  endYear: number;
+  repair: {
+    /** HP restored per month to a ship in dock, as a share of its maximum. */
+    hpPerMonth: number;
+    /** Organisation recovered per month by every ship, as a share of its maximum. */
+    orgPerMonth: number;
+    /** One repair berth per this many dockyards: only that many ships repair at once. */
+    dockyardsPerBerth: number;
+    minBerths: number;
+  };
   construction: {
     /** Construction points one civilian factory adds per month. */
     outputPerFactory: number;
@@ -52,9 +58,12 @@ export interface EconomyConfig {
 }
 
 export const ECONOMY: EconomyConfig = {
-  startYears: [1890, 1906, 1914, 1922, 1936],
-  defaultStartYear: 1914,
-  endYear: 1945,
+  repair: {
+    hpPerMonth: 0.35,
+    orgPerMonth: 1,
+    dockyardsPerBerth: 4,
+    minBerths: 2,
+  },
   construction: {
     outputPerFactory: 100,
     maxFactoriesPerProject: 10,
@@ -67,7 +76,7 @@ export const ECONOMY: EconomyConfig = {
     perFactory: { steel: 10, chromium: 4 },
   },
   production: {
-    maxDockyardsPerLine: { screen: 10, capital: 5, carrier: 5 },
+    maxDockyardsPerLine: { screen: 10, capital: 5, carrier: 5, submarine: 10 },
     efficiency: {
       base: 0.5,
       max: 1,

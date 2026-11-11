@@ -117,6 +117,21 @@ export function applyCommand(ctx: EconomyContext, state: GameState, nationId: st
     }
     case 'setAutoBuild':
       return done({ ...nation, autoBuild: cmd.building });
+    case 'setRepair': {
+      const pick =
+        cmd.ships === 'all' ? () => true
+        : cmd.ships === 'damaged' ? (s: { hp?: number }) => s.hp !== undefined
+        : ((ids) => (s: { id: string }) => ids.has(s.id))(new Set(cmd.ships));
+      const fleet = nation.fleet.map((ship) => {
+        if (!pick(ship)) return ship;
+        // Only damaged ships can go into dock; recalling works for any ship.
+        if (cmd.repairing && ship.hp === undefined) return ship;
+        if (cmd.repairing) return { ...ship, repairing: true };
+        const { repairing: _drop, ...rest } = ship;
+        return rest;
+      });
+      return done({ ...nation, fleet });
+    }
     case 'setAggressiveness': {
       if (!(cmd.aggressiveness in AGGRESSIVENESS)) return fail('Unknown aggressiveness.');
       return done({ ...nation, aggressiveness: cmd.aggressiveness });

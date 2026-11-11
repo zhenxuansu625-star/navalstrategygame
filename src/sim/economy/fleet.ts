@@ -20,9 +20,10 @@ export function fleetSide(ctx: EconomyContext, state: GameState, nationId: strin
   const def = nationDef(ctx, nationId);
   const cache = new Map<string, ShipStats>();
   return {
-    name: `${def.adjective} Navy`,
+    name: `${nation.adjective ?? def.adjective} Navy`,
     aggressiveness: nation.aggressiveness,
-    ships: nation.fleet.map((ship) => {
+    // Ships in dock for repair stay in port.
+    ships: nation.fleet.filter((ship) => !ship.repairing).map((ship) => {
       const key = JSON.stringify(ship.design);
       let stats = cache.get(key);
       if (!stats) {
@@ -30,7 +31,15 @@ export function fleetSide(ctx: EconomyContext, state: GameState, nationId: strin
         cache.set(key, stats);
       }
       const hullClass = ctx.catalog.hulls.get(ship.design.hullId)?.hullClass;
-      return { name: ship.name, className: ship.design.name, ...(hullClass ? { hullClass } : {}), stats: { ...stats } };
+      return {
+        name: ship.name,
+        className: ship.design.name,
+        refId: ship.id,
+        ...(hullClass ? { hullClass } : {}),
+        ...(ship.hp !== undefined ? { hp: ship.hp } : {}),
+        ...(ship.org !== undefined ? { org: ship.org } : {}),
+        stats: { ...stats },
+      };
     }),
   };
 }

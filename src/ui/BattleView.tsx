@@ -37,45 +37,105 @@ function advance(run: Run): Run {
 }
 
 const randomSeed = () => Math.floor(Math.random() * 1_000_000);
-const SPEEDS = [900, 450, 150];
+/** Real milliseconds per battle hour at each playback speed. */
+const HOUR_MS = [2400, 1200, 500];
 
-export function BattleView({ setup }: { setup: BattleSetup }) {
+const smooth = (t: number) => t * t * (3 - 2 * t);
+
+/**
+ * The battle part-way through an hour: HP, organisation and planes slide from
+ * the start of the hour towards its end. Sinkings, retreats and log entries
+ * land when the hour completes.
+ */
+function between(a: BattleState, b: BattleState, t: number): BattleState {
+  if (t <= 0 || a === b) return a;
+  const e = smooth(Math.min(1, t));
+  return {
+    ...a,
+    ships: a.ships.map((s, i) => {
+      const n = b.ships[i]!;
+      return { ...s, hp: s.hp + (n.hp - s.hp) * e, org: s.org + (n.org - s.org) * e, planes: Math.round(s.planes + (n.planes - s.planes) * e) };
+    }),
+  };
+}
+
+export function BattleView({ setup, onFinish }: { setup: BattleSetup; onFinish?: (battle: BattleState) => void }) {
   const [seed, setSeed] = useState(1);
   const [run, setRun] = useState<Run>(() => newRun(setup, 1));
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
-  const { battle } = run;
+  /** The next hour, computed ahead so it can be animated towards. */
+  const [ahead, setAhead] = useState<Run | null>(null);
+  const [t, setT] = useState(0);
+  const committed = run.battle;
+  const battle = ahead ? between(committed, ahead.battle, t) : committed;
 
   // Restart whenever the fleets change.
   useEffect(() => {
     setRun(newRun(setup, seed));
+    setAhead(null);
+    setT(0);
     setPlaying(false);
   }, [setup]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Play: animate towards the next hour, then commit it and start on the one after.
   useEffect(() => {
     if (!playing) return;
-    if (battle.result) {
+    if (committed.result) {
       setPlaying(false);
       return;
     }
-    const t = setTimeout(() => setRun(advance), SPEEDS[speed]);
-    return () => clearTimeout(t);
-  }, [playing, battle, speed]);
+    const target = ahead ?? advance(run);
+    if (!ahead) setAhead(target);
+    let frame = 0;
+    const start = performance.now() - t * HOUR_MS[speed]!;
+    const tick = (now: number) => {
+      const p = (now - start) / HOUR_MS[speed]!;
+      if (p >= 1) {
+        setRun(target);
+        setAhead(null);
+        setT(0);
+        return;
+      }
+      setT(p);
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [playing, run, speed]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Report the result once.
+  const reported = useRef<BattleState | null>(null);
+  useEffect(() => {
+    if (committed.result && reported.current !== committed) {
+      reported.current = committed;
+      onFinish?.(committed);
+    }
+  }, [committed, onFinish]);
+
+  const commit = (r: Run) => {
+    setRun(r);
+    setAhead(null);
+    setT(0);
+  };
 
   const restart = (s: number) => {
     setSeed(s);
-    setRun(newRun(setup, s));
+    commit(newRun(setup, s));
     setPlaying(false);
   };
+
+  const stepHour = () => commit(ahead ?? advance(run));
 
   const runToEnd = () => {
-    let r = run;
+    let r = ahead ?? run;
     while (!r.battle.result) r = advance(r);
-    setRun(r);
+    commit(r);
     setPlaying(false);
   };
 
-  const over = !!battle.result;
+  const over = !!committed.result;
+  const minutes = ahead ? Math.min(59, Math.floor(t * 60)) : 0;
 
   return (
     <div className="battle-screen">
@@ -83,23 +143,24 @@ export function BattleView({ setup }: { setup: BattleSetup }) {
         <div className="battle-header-grid">
           <SideBanner battle={battle} side={0} />
           <div className="battle-clock">
-            {battle.result ? (
-              <div className={`result-inline ${battle.result.winner === 'draw' ? 'draw' : `side-${battle.result.winner}`}`}>
-                {battle.result.winner === 'draw' ? 'Inconclusive' : `${battle.sides[battle.result.winner].name} victorious`}
+            {committed.result ? (
+              <div className={`result-inline ${committed.result.winner === 'draw' ? 'draw' : `side-${committed.result.winner}`}`}>
+                {committed.result.winner === 'draw' ? 'Inconclusive' : `${committed.sides[committed.result.winner].name} victorious`}
               </div>
             ) : (
-              <div className="clock-hour">
-                Hour <span>{battle.hour}</span>
+              <div className="clock-hour" title="Hours since the battle began">
+                Hour <span>{committed.hour}</span>
+                <span className="clock-minutes">:{String(minutes).padStart(2, '0')}</span>
               </div>
             )}
             <div className="battle-controls">
-              <button onClick={() => setRun(advance)} disabled={over} title="Advance one hour">
+              <button onClick={stepHour} disabled={over} title="Advance one hour">
                 Step
               </button>
               <button className="primary" onClick={() => setPlaying((p) => !p)} disabled={over}>
                 {playing ? '❚❚ Pause' : '▶ Play'}
               </button>
-              <button onClick={() => setSpeed((s) => (s + 1) % SPEEDS.length)} title="Playback speed">
+              <button onClick={() => setSpeed((sp) => (sp + 1) % HOUR_MS.length)} title="Playback speed">
                 {'»'.repeat(speed + 1)}
               </button>
               <button onClick={runToEnd} disabled={over} title="Resolve the rest of the battle instantly">
@@ -111,29 +172,31 @@ export function BattleView({ setup }: { setup: BattleSetup }) {
         </div>
         <TugBars battle={battle} />
         <FirepowerPanel battle={battle} />
-        {battle.result && (
+        {committed.result && (
           <div className="result-reason">
-            After {battle.result.hours} hours. {battle.result.reason}
+            After {committed.result.hours} hours. {committed.result.reason}
           </div>
         )}
-        <div className="seed-row">
-          <label>
-            Seed <input type="number" value={seed} onChange={(e) => restart(Number(e.target.value) || 0)} />
-          </label>
-          <button className="small-button" onClick={() => restart(seed)}>
-            Restart
-          </button>
-          <button className="small-button" onClick={() => restart(randomSeed())}>
-            Random
-          </button>
-        </div>
+        {!onFinish && (
+          <div className="seed-row">
+            <label>
+              Seed <input type="number" value={seed} onChange={(e) => restart(Number(e.target.value) || 0)} />
+            </label>
+            <button className="small-button" onClick={() => restart(seed)}>
+              Restart
+            </button>
+            <button className="small-button" onClick={() => restart(randomSeed())}>
+              Random
+            </button>
+          </div>
+        )}
       </Frame>
 
       <EngagementBoard battle={battle} />
 
-      <div className={`battle-lower ${battle.result ? 'with-report' : ''}`}>
-        <Dispatch battle={battle} />
-        {battle.result && <Report battle={battle} />}
+      <div className={`battle-lower ${committed.result ? 'with-report' : ''}`}>
+        <Dispatch battle={committed} />
+        {committed.result && <Report battle={committed} />}
       </div>
     </div>
   );
@@ -179,11 +242,12 @@ interface Firepower {
   torpedo: number;
   planes: number;
   aa: number;
+  asw: number;
 }
 
 /** Combined attack of the ships still fighting on one side. */
 function firepower(battle: BattleState, side: SideIndex): Firepower {
-  const f: Firepower = { light: 0, heavy: 0, torpedo: 0, planes: 0, aa: 0 };
+  const f: Firepower = { light: 0, heavy: 0, torpedo: 0, planes: 0, aa: 0, asw: 0 };
   for (const s of battle.ships) {
     if (s.side !== side) continue;
     if (isPresent(s)) f.aa += s.stats.aa;
@@ -192,6 +256,7 @@ function firepower(battle: BattleState, side: SideIndex): Firepower {
     f.heavy += s.stats.heavyAttack;
     f.torpedo += s.stats.torpedoAttack;
     f.planes += s.planes;
+    f.asw += s.stats.aswAttack;
   }
   return f;
 }
@@ -202,13 +267,18 @@ const FIREPOWER_ROWS: { key: keyof Firepower; label: string; icon: StatIconKind;
   { key: 'torpedo', label: 'Torpedoes', icon: 'torpedo', hint: 'Torpedo attack of ships still fighting' },
   { key: 'planes', label: 'Strike aircraft', icon: 'hangar', hint: 'Planes left on carriers that are still fighting; they strike every few hours' },
   { key: 'aa', label: 'Anti-air', icon: 'aa', hint: 'AA of ships still in the battle: cuts air-strike damage and shoots planes down' },
+  { key: 'asw', label: 'Anti-sub', icon: 'asw', hint: 'Depth-charge attack of ships still fighting: the only way to hit a submarine' },
 ];
 
 /** HOI4-style comparison of the two fleets' remaining firepower. */
 function FirepowerPanel({ battle }: { battle: BattleState }) {
   const a = firepower(battle, 0);
   const b = firepower(battle, 1);
-  const rows = FIREPOWER_ROWS.filter((r) => r.key !== 'planes' || a.planes + b.planes > 0 || battle.ships.some((s) => s.stats.airWing > 0));
+  const rows = FIREPOWER_ROWS.filter(
+    (r) =>
+      (r.key !== 'planes' || battle.ships.some((s) => s.stats.airWing > 0)) &&
+      (r.key !== 'asw' || battle.ships.some((s) => s.stats.line === 'submarine')),
+  );
   return (
     <div className="firepower">
       {rows.map((r) => {
@@ -265,6 +335,7 @@ const BOARD_LINES: { line: Line; title: string }[] = [
   { line: 'carrier', title: 'Carriers' },
   { line: 'capital', title: 'Capital ships' },
   { line: 'screen', title: 'Screens' },
+  { line: 'submarine', title: 'Submarines' },
 ];
 
 /** Both fleets side by side, one row per battle line, ships of a class condensed into one chip. */
@@ -296,6 +367,13 @@ function EngagementBoard({ battle }: { battle: BattleState }) {
                 <span className="side-1-text">{pctText(cover[1]!.screening)}</span>
               </div>
             )}
+            {line === 'submarine' && (
+              <div className="board-label-sub" title="Submerged submarines cannot be attacked until they are detected">
+                <span className="side-0-text">{submerged(battle, 0)}</span>
+                <span className="muted"> submerged </span>
+                <span className="side-1-text">{submerged(battle, 1)}</span>
+              </div>
+            )}
             {line === 'carrier' && (
               <div className="board-label-sub" title={`Target ${BATTLE_CONFIG.screening.capitalsPerCarrier} capital ship per carrier`}>
                 <span className="side-0-text">{pctText(cover[0]!.carrierCover)}</span>
@@ -317,6 +395,8 @@ function EngagementBoard({ battle }: { battle: BattleState }) {
 }
 
 const pctText = (n: number) => `${Math.round(n * 100)}%`;
+const submerged = (battle: BattleState, side: SideIndex) =>
+  battle.ships.filter((s) => s.side === side && s.hidden && isPresent(s)).length;
 
 function GroupCell({
   battle,
@@ -362,6 +442,7 @@ function GroupChip({ group: g, open, onToggle }: { group: ShipGroup; open: boole
           {g.className}
         </span>
         <span className="group-status">
+          {g.hidden > 0 && <span className="st-hidden" title="Submerged: cannot be attacked until detected">◌{g.hidden}</span>}
           {g.retreating > 0 && <span className="st-retreat" title="Retreating">↩{g.retreating}</span>}
           {g.sunk > 0 && <span className="st-sunk" title="Sunk">†{g.sunk}</span>}
           {g.escaped > 0 && <span className="st-escaped" title="Escaped">⇥{g.escaped}</span>}
@@ -376,7 +457,7 @@ function GroupChip({ group: g, open, onToggle }: { group: ShipGroup; open: boole
           {g.ships.map((s) => (
             <div key={s.id} className={`group-ship status-${s.status}`} title={statTooltip(s)}>
               <span className="group-ship-name">{s.name}</span>
-              <span className="group-ship-status">{s.status === 'active' ? '' : statusLabel(s)}</span>
+              <span className="group-ship-status">{s.status === 'active' ? (s.hidden ? 'Submerged' : '') : statusLabel(s)}</span>
               <Bar kind="hp" value={s.hp / s.stats.hp} title={`HP ${Math.round(s.hp)}/${s.stats.hp}`} />
               <Bar kind="org" value={s.org / s.stats.org} title={`Organisation ${Math.round(s.org)}/${s.stats.org}`} />
             </div>
@@ -412,6 +493,7 @@ function statTooltip(ship: ShipState): string {
     `Fire control +${Math.round(s.fireControl * 100)}%`,
     `Speed ${s.speed} kn, visibility ${s.visibility}`,
     `Anti-air ${s.aa}${s.airWing > 0 ? `, strike aircraft ${ship.planes}/${s.airWing}` : ''}`,
+    `Anti-sub ${s.aswAttack}, sub detection ${s.subDetection}${ship.hidden ? ' (submerged)' : ''}`,
   ].join('\n');
 }
 

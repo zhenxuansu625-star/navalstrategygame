@@ -37,7 +37,7 @@ const config: EconomyConfig = {
   consumerGoodsShare: 0.25,
   trade: { perFactory: { steel: 10, chromium: 4 } },
   production: {
-    maxDockyardsPerLine: { screen: 10, capital: 5, carrier: 5 },
+    maxDockyardsPerLine: { screen: 10, capital: 5, carrier: 5, submarine: 10 },
     efficiency: { base: 0.5, max: 1, gainPerMonth: 0.1, retainSameHull: 0.8, retainSameClass: 0.6 },
     resourceShortfallPenalty: 0.6,
   },
@@ -107,7 +107,7 @@ describe('civilian factories', () => {
     s = ok(ctx, s, { type: 'queueBuilding', building: 'dockyard' }); // 2000 points: two months
     s = month(ctx, s);
     expect(s.nations.a!.dockyards).toBe(10);
-    expect(s.nations.a!.construction[0]!.progress).toBe(1000);
+    expect(s.nations.a!.construction[0]!.progress).toBeCloseTo(1000);
     s = month(ctx, s);
     expect(s.nations.a!.dockyards).toBe(11);
   });
@@ -263,7 +263,7 @@ describe('production lines', () => {
     const ctx = world();
     let s = ok(ctx, newGame(ctx), { type: 'addLine', design: DD, dockyards: 10, quantity: 3 });
     s = month(ctx, s, 8);
-    expect(s.nations.a!.fleet[2]!.name).toBe('Destroyer 1915 3');
+    expect(s.nations.a!.fleet[2]!.name).toBe('Early Destroyer 3');
   });
 
   it('adding dockyards dilutes efficiency; retooling keeps part of it', () => {
@@ -307,9 +307,9 @@ describe('monthly step', () => {
   it('advances the date and rolls over the year', () => {
     const ctx = world();
     let s = newGame(ctx, 1914);
-    expect(s.date).toEqual({ year: 1914, month: 1 });
+    expect(s.date).toEqual({ year: 1914, month: 1, day: 1 });
     s = month(ctx, s, 12);
-    expect(s.date).toEqual({ year: 1915, month: 1 });
+    expect(s.date).toEqual({ year: 1915, month: 1, day: 1 });
     expect(s.turn).toBe(12);
   });
 
@@ -348,7 +348,7 @@ describe('starting position', () => {
       'preset_bb_1906', 'preset_bb_1906', 'preset_dd_1895', 'preset_dd_1895', 'preset_dd_1895',
     ]);
     const late = newGame(ctx, 1936).nations.a!;
-    expect(late.fleet.some((x) => x.design.id === 'preset_cv_1940')).toBe(true);
+    expect(late.fleet.some((x) => x.design.id === 'preset_cv_1924')).toBe(true);
     expect(late.fleet.some((x) => x.design.id === 'preset_dd_1936')).toBe(true);
   });
 
@@ -398,7 +398,7 @@ describe('nation traits', () => {
     expect(r.supply.steel).toBe(130); // 2 factories * 10 * 1.5
     expect(r.lines[0]!.output).toBeCloseTo(4 * 100 * 0.5 * 1.25);
     s = month(ctx, s);
-    expect(s.nations.a!.construction[0]!.progress).toBe(1500); // 10 factories * 100 * 1.5 towards a 2000-point dockyard
+    expect(s.nations.a!.construction[0]!.progress).toBeCloseTo(1500); // 10 factories * 100 * 1.5 towards a 2000-point dockyard
     expect(s.nations.a!.lines[0]!.efficiency).toBeCloseTo(0.7); // gain doubled
   });
 
@@ -458,7 +458,7 @@ describe('AI and fleets', () => {
     expect(setup.sides[0].name).toBe('Alandic Navy');
     expect(setup.sides[0].aggressiveness).toBe('highRisk');
     expect(setup.sides[0].ships).toHaveLength(6);
-    expect(setup.sides[0].ships[0]).toMatchObject({ className: 'Super-dreadnought 1914', hullClass: 'battleship' });
+    expect(setup.sides[0].ships[0]).toMatchObject({ className: 'Early Battleship', hullClass: 'battleship' });
     expect(setup.sides[1].ships).toHaveLength(0);
     expect(designCost(ctx.catalog, BB).production).toBe(10380);
   });

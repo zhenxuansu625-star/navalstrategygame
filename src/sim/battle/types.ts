@@ -1,10 +1,11 @@
 import type { AggressivenessId } from '../../data/battle';
 
-export type AttackType = 'light' | 'heavy' | 'torpedo';
-export const ATTACK_TYPES: readonly AttackType[] = ['light', 'heavy', 'torpedo'];
+/** `asw` is anti-submarine attack (depth charges): the only attack that can hit a submarine. */
+export type AttackType = 'light' | 'heavy' | 'torpedo' | 'asw';
+export const ATTACK_TYPES: readonly AttackType[] = ['light', 'heavy', 'torpedo', 'asw'];
 
-export type Line = 'screen' | 'capital' | 'carrier';
-export const LINES: readonly Line[] = ['capital', 'screen', 'carrier'];
+export type Line = 'screen' | 'capital' | 'carrier' | 'submarine';
+export const LINES: readonly Line[] = ['capital', 'screen', 'carrier', 'submarine'];
 
 /** Combat stats of one ship. Derived from a design (slice 2) or hard-coded presets. */
 export interface ShipStats {
@@ -29,6 +30,10 @@ export interface ShipStats {
   aa: number;
   /** Strike aircraft carried (carriers only). */
   airWing: number;
+  /** Anti-submarine attack (depth charges). */
+  aswAttack: number;
+  /** Finds hidden submarines (sonar, depth-charge crews). */
+  subDetection: number;
 }
 
 export type ShipStatus = 'active' | 'retreating' | 'escaped' | 'sunk';
@@ -47,6 +52,10 @@ export interface ShipState {
   org: number;
   /** Strike aircraft still available (carriers). */
   planes: number;
+  /** Submarines start submerged and cannot be targeted until revealed. */
+  hidden?: boolean;
+  /** Links the ship back to its campaign record. */
+  refId?: string;
   status: ShipStatus;
   retreatReason?: 'hp' | 'org';
   /** Hour the ship sank or escaped. */
@@ -102,6 +111,7 @@ export type LogEvent =
   | { hour: number; type: 'sunk'; side: SideIndex; ship: string; by: string }
   | { hour: number; type: 'retreat'; side: SideIndex; ship: string; reason: 'hp' | 'org'; hpPct: number; orgPct: number }
   | { hour: number; type: 'escaped'; side: SideIndex; ship: string }
+  | { hour: number; type: 'revealed'; side: SideIndex; ship: string; afterFiring: boolean }
   | { hour: number; type: 'end'; winner: SideIndex | 'draw'; reason: string };
 
 export interface BattleResult {
@@ -118,6 +128,8 @@ export interface BattleState {
   log: LogEvent[];
   /** Keys of (attacker class, attack type, target class) bounces already logged, to avoid spam. */
   loggedBounces: string[];
+  /** Consecutive hours in which nobody could fire; the fleets lose contact after a while. */
+  quietHours?: number;
   result?: BattleResult;
 }
 
@@ -128,6 +140,11 @@ export interface ShipSetup {
   name: string;
   className: string;
   hullClass?: string;
+  /** Campaign ship id, so results can be written back. */
+  refId?: string;
+  /** Starting HP and organisation if the ship is already damaged; full when left out. */
+  hp?: number;
+  org?: number;
   stats: ShipStats;
 }
 

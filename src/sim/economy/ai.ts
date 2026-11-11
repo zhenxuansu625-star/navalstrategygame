@@ -123,7 +123,12 @@ export function aiCommands(ctx: EconomyContext, state: GameState, nationId: stri
   const nation = state.nations[nationId];
   if (!nation) return [];
   const p = profile ?? nationDef(ctx, nationId).ai;
+  // Damaged ships go into dock.
+  const repairs: Command[] = nation.fleet.some((s) => s.hp !== undefined && !s.repairing)
+    ? [{ type: 'setRepair', ships: 'damaged', repairing: true }]
+    : [];
   return [
+    ...repairs,
     ...productionCommands(ctx, state, nation, p),
     ...tradeCommands(ctx, nation),
     ...constructionCommands(ctx, state, nation, p),
