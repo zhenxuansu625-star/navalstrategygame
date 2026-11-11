@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { BOOKMARKS, NATURAL_RIVALS } from '../src/data/bookmarks';
 import credits from '../src/data/leaderCredits.json';
 import { NATIONS } from '../src/data/nations';
+import { STARTING_FLEETS } from '../src/data/startingFleets';
 import { createGame, DEFAULT_CONTEXT, nationName } from '../src/sim/economy';
 
 const nationIds = new Set(NATIONS.map((n) => n.id));
@@ -47,7 +48,7 @@ describe('campaign start dates', () => {
         const rival = (NATURAL_RIVALS[n.nationId] ?? []).find((r) => b.nations.some((x) => x.nationId === r))
           ?? b.nations.find((x) => x.nationId !== n.nationId)!.nationId;
         const names = Object.fromEntries(b.nations.map((x) => [x.nationId, { name: x.name, adjective: x.adjective }]));
-        const s = createGame(DEFAULT_CONTEXT, { playerId: n.nationId, rivalId: rival, startYear: b.year, names });
+        const s = createGame(DEFAULT_CONTEXT, { playerId: n.nationId, rivalId: rival, startYear: b.year, names, fleets: STARTING_FLEETS[b.id] });
         expect(s.nations[n.nationId]!.fleet.length).toBeGreaterThan(0);
         if (n.name) expect(nationName(DEFAULT_CONTEXT, s, n.nationId).name).toBe(n.name);
       }

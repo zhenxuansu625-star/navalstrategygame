@@ -805,3 +805,4 @@ details.pierce-check summary { cursor: pointer; list-style: revert; }
 .damaged-ship .icon-button { padding: 1px 8px; font-size: 10px; }
 .fleet-chip-hurt { color: var(--org); }
 .st-hidden { color: #8fc7e8; }
+.fleet-summary-line { font-size: 13px; color: var(--text); margin-bottom: 6px; }

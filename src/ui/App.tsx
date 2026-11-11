@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PRESET_DESIGNS, RETIRED_PRESETS } from '../data/designs';
 import { DEFAULT_FLEETS, SHIP_NAMES } from '../data/scenarios';
+import { STARTING_FLEETS } from '../data/startingFleets';
 import { buildBattleSetup, DEFAULT_CATALOG, type Design, type FleetSetup } from '../sim/designer';
 import { createGame, DEFAULT_CONTEXT, migrateGame, nationName } from '../sim/economy';
 import { createRng } from '../sim/rng';
@@ -66,7 +67,7 @@ export function App() {
 
   const startCampaign = ({ bookmark, playerId, rivalId }: CampaignStartChoice) => {
     const names = Object.fromEntries(bookmark.nations.map((n) => [n.nationId, { name: n.name, adjective: n.adjective }]));
-    const game = createGame(DEFAULT_CONTEXT, { playerId, rivalId, startYear: bookmark.year, names });
+    const game = createGame(DEFAULT_CONTEXT, { playerId, rivalId, startYear: bookmark.year, names, fleets: STARTING_FLEETS[bookmark.id] });
     const next = { game, rngState: createRng(bookmark.year).getState() };
     setCampaignState(next);
     save('campaign', next);

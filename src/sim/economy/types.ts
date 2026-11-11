@@ -1,4 +1,5 @@
 import type { AggressivenessId } from '../../data/battle';
+import type { Era } from '../../data/eras';
 import type { Design, HullClass } from '../designer/types';
 
 export type BuildingType = 'civilianFactory' | 'dockyard' | 'infrastructure';
@@ -43,6 +44,9 @@ export interface NationTrait {
   /** Set when the trait cannot take effect yet, e.g. submarines do not exist. */
   inactive?: string;
 }
+
+/** A starting fleet: ship counts by hull class and era tier, e.g. { battleship: { early: 15 } }. */
+export type FleetSpec = Partial<Record<HullClass, Partial<Record<Era['id'], number>>>>;
 
 /** Which industrial strategy and fleet mix an AI nation follows. */
 export interface AiProfile {
