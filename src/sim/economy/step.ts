@@ -5,6 +5,7 @@
  * month are the same whichever you use. Neither mutates its input.
  */
 import { BUILDING_NAMES } from '../../data/economy';
+import { ERAS, eraOf, type Era } from '../../data/eras';
 import type { BattleState } from '../battle/types';
 import { designCost, designYear } from '../designer/stats';
 import type { Design, HullClass } from '../designer/types';
@@ -13,7 +14,7 @@ import { applyCommands, queueFillCommands } from './commands';
 import { DEFAULT_CONTEXT, nationDef, resolveModifiers, type EconomyContext } from './context';
 import { nationShipStats } from './fleet';
 import { industryReport } from './industry';
-import type { GameDate, GameEvent, GameState, NationDef, NationState, Orders, ShipRecord } from './types';
+import type { FleetSpec, GameDate, GameEvent, GameState, NationDef, NationState, Orders, ShipRecord } from './types';
 
 /* ------------------------------------------------------------------ */
 /* Dates                                                               */
@@ -51,6 +52,18 @@ export function newestDesign(ctx: EconomyContext, hullClass: HullClass, year: nu
   return best;
 }
 
+/**
+ * The preset a starting ship of this class and era uses: that era's preset if it
+ * already exists in `year`, otherwise the newest earlier design of the class.
+ */
+export function startingDesign(ctx: EconomyContext, hullClass: HullClass, era: Era['id'], year: number): Design | undefined {
+  const ofClass = ctx.presets.filter((d) => ctx.catalog.hulls.get(d.hullId)?.hullClass === hullClass);
+  const exact = ofClass.find((d) => eraOf(designYear(ctx.catalog, d)).id === era && designYear(ctx.catalog, d) <= year);
+  if (exact) return exact;
+  const cutoff = Math.min(year, (ERAS[ERAS.findIndex((e) => e.id === era) + 1]?.from ?? Infinity) - 1);
+  return newestDesign(ctx, hullClass, cutoff) ?? newestDesign(ctx, hullClass, year);
+}
+
 function shipName(def: NationDef, nation: NationState, design: Design): string {
   const used = new Set(nation.fleet.map((s) => s.name));
   const free = def.shipNames.find((n) => !used.has(n));
@@ -73,9 +86,17 @@ export interface NewGameOptions {
   startYear: number;
   /** Era names, e.g. Russia as the Soviet Union. */
   names?: Record<string, { name?: string; adjective?: string }>;
+  /** Historical starting fleets for this date; nations without one use their default. */
+  fleets?: Record<string, FleetSpec>;
 }
 
-function createNation(ctx: EconomyContext, id: string, date: GameDate, names?: { name?: string; adjective?: string }): NationState {
+function createNation(
+  ctx: EconomyContext,
+  id: string,
+  date: GameDate,
+  names?: { name?: string; adjective?: string },
+  fleet?: FleetSpec,
+): NationState {
   const def = nationDef(ctx, id);
   const nation: NationState = {
     id,
@@ -94,6 +115,21 @@ function createNation(ctx: EconomyContext, id: string, date: GameDate, names?: {
     producedValue: 0,
     aggressiveness: 'mediumRisk',
   };
+  if (fleet) {
+    // Biggest ships first so the most famous names go to the capital ships.
+    const order: HullClass[] = ['carrier', 'battleship', 'battlecruiser', 'superHeavy', 'heavyCruiser', 'lightCruiser', 'destroyer', 'submarine'];
+    for (const hullClass of order) {
+      const byEra = fleet[hullClass];
+      if (!byEra) continue;
+      for (const era of [...ERAS].reverse()) {
+        const count = byEra[era.id] ?? 0;
+        const design = count > 0 ? startingDesign(ctx, hullClass, era.id, date.year) : undefined;
+        if (!design) continue;
+        for (let i = 0; i < count; i++) launch(def, nation, structuredClone(design), date);
+      }
+    }
+    return nation;
+  }
   for (const [hullClass, count] of Object.entries(def.startingFleet) as [HullClass, number][]) {
     const design = newestDesign(ctx, hullClass, date.year);
     if (!design) continue;
@@ -111,8 +147,8 @@ export function createGame(ctx: EconomyContext, opts: NewGameOptions): GameState
     playerId: opts.playerId,
     rivalId: opts.rivalId,
     nations: {
-      [opts.playerId]: createNation(ctx, opts.playerId, date, opts.names?.[opts.playerId]),
-      [opts.rivalId]: createNation(ctx, opts.rivalId, date, opts.names?.[opts.rivalId]),
+      [opts.playerId]: createNation(ctx, opts.playerId, date, opts.names?.[opts.playerId], opts.fleets?.[opts.playerId]),
+      [opts.rivalId]: createNation(ctx, opts.rivalId, date, opts.names?.[opts.rivalId], opts.fleets?.[opts.rivalId]),
     },
     events: [],
   };
@@ -172,7 +208,7 @@ function runDay(ctx: EconomyContext, nation: NationState, date: GameDate, events
   for (let i = 0; i < nation.construction.length; i++) {
     const item = nation.construction[i]!;
     const speed = Math.max(0, 1 + mods.constructionSpeed[item.building]);
-    item.progress += (report.factoriesPerItem[i] ?? 0) * cfg.construction.outputPerFactory * speed * share;
+    item.progress += (report.factoriesPerItem[i] ?? 0) * cfg.construction.outputPerFactory * cfg.pace * speed * share;
     if (item.progress < item.cost - EPS) {
       stillBuilding.push(item);
       continue;
@@ -223,7 +259,7 @@ function runDay(ctx: EconomyContext, nation: NationState, date: GameDate, events
       if (ship.org >= max.org - EPS) delete ship.org;
     }
     if (ship.hp !== undefined && inDock.has(ship.id)) {
-      ship.hp += max.hp * cfg.repair.hpPerMonth * share;
+      ship.hp += max.hp * cfg.repair.hpPerMonth * cfg.pace * share;
       if (ship.hp >= max.hp - EPS) {
         delete ship.hp;
         delete ship.repairing;

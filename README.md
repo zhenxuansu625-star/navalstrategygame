@@ -10,7 +10,8 @@ Design notes live in [`docs/`](docs/); the build order is in [`docs/08-roadmap.m
 The game opens on a **main menu** with two modes. Both include the **ship designer**.
 
 - **Campaign.** Pick a start date (1890, 1906, 1914, 1922, 1936 or 1939) and a nation, shown by its leader
-  at that date, plus a rival. A live clock runs the campaign day by day: pause with the button or the space
+  at that date, plus a rival. Every nation starts with its historical fleet for that date (rounded; sources
+  and counting rules in `src/data/startingFleets.ts`). A live clock runs the campaign day by day: pause with the button or the space
   bar, and pick speed 1–5 (or use + and -). The campaign has no end date.
   - **Economy.** Civilian factories build factories, dockyards and infrastructure through a construction
     queue; naval production lines build your designs and the presets; trade imports steel and chromium.

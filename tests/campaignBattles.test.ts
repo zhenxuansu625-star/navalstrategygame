@@ -87,7 +87,7 @@ describe('repairs', () => {
     s = ok(s, 'uk', { type: 'setRepair', ships: [ship.id], repairing: true });
     s = stepDay(s, {}, rng, ctx);
     const after = s.nations.uk!.fleet[0]!.hp!;
-    expect(after).toBeCloseTo(max * 0.5 + (max * ECONOMY.repair.hpPerMonth) / 31);
+    expect(after).toBeCloseTo(max * 0.5 + (max * ECONOMY.repair.hpPerMonth * ECONOMY.pace) / 31);
     s = step(s, {}, rng, ctx);
     s = step(s, {}, rng, ctx);
     const healed = s.nations.uk!.fleet[0]!;

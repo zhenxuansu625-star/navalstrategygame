@@ -34,7 +34,7 @@ export const PRESET_DESIGNS: Design[] = [
   }),
   d('preset_cl_1915', 'Early Light Cruiser', 'Scout cruiser', 'cl2', {
     fireControl: 'fc_rangefinder', engine: 'eng_light2', armour: 'arm_lc2',
-    mainFront: 'lb2', mainMid: 'lb2', mainRear: 'lb2', custom1: 'torp2', custom2: 'dc1',
+    mainFront: 'lb2', mainMid: 'lb2', mainRear: 'lb2', custom1: 'torp2', custom2: null,
   }),
   d('preset_cl_1936', 'Basic Light Cruiser', 'Fleet cruiser', 'cl4', {
     fireControl: 'fc_director', engine: 'eng_light3', armour: 'arm_lc3',
@@ -136,7 +136,7 @@ export const PRESET_DESIGNS: Design[] = [
     engine: 'eng_sub1', mainFront: 'torp1', mainRear: null, secondary1: null, custom1: null,
   }),
   d('preset_ss_1915', 'Early Submarine', 'Patrol submarine', 'sub2', {
-    engine: 'eng_sub1', mainFront: 'torp2', mainRear: 'torp2', secondary1: 'sec1', custom1: 'sub_reload',
+    engine: 'eng_sub1', mainFront: 'torp2', mainRear: 'torp2', secondary1: 'sec1', custom1: null,
   }),
   d('preset_ss_1925', 'Basic Submarine', 'Patrol submarine', 'sub3', {
     engine: 'eng_sub2', mainFront: 'torp3', mainRear: 'torp3', secondary1: 'sec2', custom1: 'sub_reload', custom2: null,

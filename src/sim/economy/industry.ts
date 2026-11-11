@@ -78,7 +78,7 @@ export function industryReport(ctx: EconomyContext, nation: NationState): Indust
     const resourceFactor = 1 - cfg.production.resourceShortfallPenalty * (1 - worst);
     const hullClass = ctx.catalog.hulls.get(line.design.hullId)?.hullClass ?? '';
     const bonus = 1 + (mods.dockyardOutput.all ?? 0) + (mods.dockyardOutput[hullClass] ?? 0);
-    const output = assigned * ctx.dockyardOutputPerMonth * line.efficiency * resourceFactor * Math.max(0, bonus);
+    const output = assigned * ctx.dockyardOutputPerMonth * cfg.pace * line.efficiency * resourceFactor * Math.max(0, bonus);
     const monthsToNext = output > 0 ? Math.max(1, Math.ceil((cost.production - line.progress) / output)) : null;
     return { lineId: line.id, assigned, cap, resourceFactor, output, cost: cost.production, monthsToNext };
   });

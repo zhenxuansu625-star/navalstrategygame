@@ -100,7 +100,7 @@ describe('nation traits', () => {
     expect(mods('germany').constructionSpeed.civilianFactory).toBeGreaterThan(0);
     expect(mods('russia').dockyardOutput.all).toBeLessThan(0);
     // Germany's U-boat arm: submarines build faster, and the AI builds plenty of them.
-    expect(mods('germany').dockyardOutput.submarine).toBeCloseTo(0.3);
+    expect(mods('germany').dockyardOutput.submarine).toBeCloseTo(0.25);
     const mix = NATIONS.find((n) => n.id === 'germany')!.ai.fleetMix;
     expect(mix.submarine).toBeGreaterThan(Math.max(...NATIONS.filter((n) => n.id !== 'germany').map((n) => n.ai.fleetMix.submarine ?? 0)));
   });

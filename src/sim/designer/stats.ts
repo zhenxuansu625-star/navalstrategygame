@@ -1,4 +1,5 @@
 import { DESIGN_RULES } from '../../data/designRules';
+import { ECONOMY } from '../../data/economy';
 import { PRODUCTION } from '../../data/production';
 import type { Catalog } from './catalog';
 import type { Cost, Design, DesignStats, Module, ModuleStats } from './types';
@@ -74,7 +75,7 @@ export function designCost(catalog: Catalog, design: Design): DesignCost {
     c.steel += m.cost.steel;
     c.chromium += m.cost.chromium;
   }
-  const dockyardDays = c.production / PRODUCTION.dockyardOutputPerDay;
+  const dockyardDays = c.production / (PRODUCTION.dockyardOutputPerDay * ECONOMY.pace);
   return { ...c, dockyardDays, daysAtReference: Math.ceil(dockyardDays / PRODUCTION.referenceDockyards) };
 }
 

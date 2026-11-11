@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react';
 import { BOOKMARKS, NATURAL_RIVALS, type Bookmark, type BookmarkNation } from '../data/bookmarks';
+import { HULL_CLASS_NAMES } from '../data/hulls';
 import { NATION_BY_ID } from '../data/nations';
+import { STARTING_FLEETS } from '../data/startingFleets';
+import type { HullClass } from '../sim/designer';
 import type { NationDef } from '../sim/economy';
 import { Frame } from './components';
 import { load, save } from './storage';
@@ -100,6 +103,7 @@ export function CampaignStart({ onStart, onBack }: { onStart: (c: CampaignStartC
               </div>
               <p className="start-blurb">{def.blurb}</p>
               <NationFacts def={def} />
+              <FleetSummary bookmarkId={bookmark.id} nationId={player.nationId} />
               <TraitList def={def} />
             </div>
             <div className="start-actions">
@@ -147,6 +151,20 @@ function LeaderCard({
       <span className="leader-name">{entry.leader.name}</span>
     </button>
   );
+}
+
+const FLEET_ORDER: HullClass[] = ['battleship', 'battlecruiser', 'carrier', 'heavyCruiser', 'lightCruiser', 'destroyer', 'submarine'];
+
+/** "15 battleships · 3 carriers · ..." for the nation's historical starting fleet. */
+function FleetSummary({ bookmarkId, nationId }: { bookmarkId: string; nationId: string }) {
+  const fleet = STARTING_FLEETS[bookmarkId]?.[nationId];
+  if (!fleet) return null;
+  const parts = FLEET_ORDER.map((c) => {
+    const n = Object.values(fleet[c] ?? {}).reduce((a, b) => a + (b ?? 0), 0);
+    if (n === 0) return null;
+    return `${n} ${HULL_CLASS_NAMES[c].toLowerCase()}${n === 1 ? '' : 's'}`;
+  }).filter(Boolean);
+  return <div className="fleet-summary-line">Fleet: {parts.join(' · ')}</div>;
 }
 
 function NationFacts({ def }: { def: NationDef }) {
