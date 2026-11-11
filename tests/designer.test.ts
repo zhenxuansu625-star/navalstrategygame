@@ -3,6 +3,7 @@ import { PRESET_DESIGNS, RETIRED_PRESETS } from '../src/data/designs';
 import { eraOf } from '../src/data/eras';
 import { DEFAULT_FLEETS } from '../src/data/scenarios';
 import { PRODUCTION } from '../src/data/production';
+import { ECONOMY } from '../src/data/economy';
 import { BATTLE_CONFIG } from '../src/data/battle';
 import {
   buildBattleSetup,
@@ -115,8 +116,8 @@ describe('cost', () => {
     expect(c.production).toBe(1800);
     expect(c.steel).toBe(5 + 1 + 1 + 3 + 1 + 1 + 1);
     expect(c.chromium).toBe(1);
-    expect(c.dockyardDays).toBeCloseTo(1800 / PRODUCTION.dockyardOutputPerDay);
-    expect(c.daysAtReference).toBe(Math.ceil(1800 / PRODUCTION.dockyardOutputPerDay / PRODUCTION.referenceDockyards));
+    expect(c.dockyardDays).toBeCloseTo(1800 / (PRODUCTION.dockyardOutputPerDay * ECONOMY.pace));
+    expect(c.daysAtReference).toBe(Math.ceil(1800 / (PRODUCTION.dockyardOutputPerDay * ECONOMY.pace) / PRODUCTION.referenceDockyards));
   });
 });
 

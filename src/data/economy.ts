@@ -3,6 +3,11 @@ import type { Line } from '../sim/battle/types';
 import type { BuildingType, ResourceType } from '../sim/economy/types';
 
 export interface EconomyConfig {
+  /**
+   * Overall game pace: multiplies construction, ship production and repair
+   * speed. 1.3 means everything builds 30% faster than the base numbers below.
+   */
+  pace: number;
   repair: {
     /** HP restored per month to a ship in dock, as a share of its maximum. */
     hpPerMonth: number;
@@ -58,6 +63,7 @@ export interface EconomyConfig {
 }
 
 export const ECONOMY: EconomyConfig = {
+  pace: 1.3,
   repair: {
     hpPerMonth: 0.35,
     orgPerMonth: 1,
@@ -67,7 +73,7 @@ export const ECONOMY: EconomyConfig = {
   construction: {
     outputPerFactory: 100,
     maxFactoriesPerProject: 10,
-    cost: { civilianFactory: 2700, dockyard: 9000, infrastructure: 1200 },
+    cost: { civilianFactory: 3400, dockyard: 9000, infrastructure: 1200 },
     slotsPerInfrastructure: 2,
     infrastructureCostGrowth: 0.35,
   },

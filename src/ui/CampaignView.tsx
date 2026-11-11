@@ -382,7 +382,7 @@ function ConstructionPanel({
       )}
       {nation.construction.map((item, i) => {
         const factories = report.factoriesPerItem[i] ?? 0;
-        const rate = factories * cfg.outputPerFactory * Math.max(0, 1 + mods.constructionSpeed[item.building]);
+        const rate = factories * cfg.outputPerFactory * ECONOMY.pace * Math.max(0, 1 + mods.constructionSpeed[item.building]);
         const months = rate > 0 ? Math.max(1, Math.ceil((item.cost - item.progress) / rate)) : null;
         return (
           <div key={item.id} className={`queue-item ${factories === 0 ? 'stalled' : ''}`}>
@@ -693,7 +693,7 @@ function DamagedShip({
   const hp = (ship.hp ?? max.hp) / max.hp;
   const org = (ship.org ?? max.org) / max.org;
   const status = ship.repairing ? (inDock ? 'In dock' : 'Waiting for a berth') : ship.hp !== undefined ? 'Damaged' : 'Recovering';
-  const months = inDock && ship.hp !== undefined ? Math.ceil((1 - hp) / ECONOMY.repair.hpPerMonth * 30) : null;
+  const months = inDock && ship.hp !== undefined ? Math.ceil(((1 - hp) / (ECONOMY.repair.hpPerMonth * ECONOMY.pace)) * 30) : null;
   return (
     <div className={`damaged-ship ${ship.repairing ? 'repairing' : ''}`}>
       <div className="damaged-ship-head">

@@ -27,6 +27,7 @@ import { createRng } from '../src/sim/rng';
 // Round numbers so every formula can be checked by hand.
 const config: EconomyConfig = {
   ...ECONOMY,
+  pace: 1,
   construction: {
     outputPerFactory: 100,
     maxFactoriesPerProject: 10,

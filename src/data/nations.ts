@@ -43,8 +43,8 @@ export const NATIONS: NationDef[] = [
     traits: [
       {
         id: 'industrial_heartland', name: 'Industrial heartland', kind: 'strength',
-        description: 'Civilian factories are built 12% faster.',
-        modifiers: { constructionSpeed: { civilianFactory: 0.12 } },
+        description: 'Civilian factories are built 8% faster.',
+        modifiers: { constructionSpeed: { civilianFactory: 0.08 } },
       },
       {
         id: 'krupp_engineering', name: 'Krupp engineering', kind: 'strength',
@@ -53,8 +53,8 @@ export const NATIONS: NationDef[] = [
       },
       {
         id: 'uboat_arm', name: 'U-boat arm', kind: 'strength',
-        description: 'Submarines build 30% faster.',
-        modifiers: { dockyardOutput: { submarine: 0.3 } },
+        description: 'Submarines build 25% faster.',
+        modifiers: { dockyardOutput: { submarine: 0.25 } },
       },
     ],
     ai: { transitionMonth: 30, fleetMix: { battleship: 3, battlecruiser: 2, carrier: 0.5, heavyCruiser: 1, lightCruiser: 2, destroyer: 3, submarine: 2.5 } },

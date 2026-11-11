@@ -172,7 +172,7 @@ function runDay(ctx: EconomyContext, nation: NationState, date: GameDate, events
   for (let i = 0; i < nation.construction.length; i++) {
     const item = nation.construction[i]!;
     const speed = Math.max(0, 1 + mods.constructionSpeed[item.building]);
-    item.progress += (report.factoriesPerItem[i] ?? 0) * cfg.construction.outputPerFactory * speed * share;
+    item.progress += (report.factoriesPerItem[i] ?? 0) * cfg.construction.outputPerFactory * cfg.pace * speed * share;
     if (item.progress < item.cost - EPS) {
       stillBuilding.push(item);
       continue;
@@ -223,7 +223,7 @@ function runDay(ctx: EconomyContext, nation: NationState, date: GameDate, events
       if (ship.org >= max.org - EPS) delete ship.org;
     }
     if (ship.hp !== undefined && inDock.has(ship.id)) {
-      ship.hp += max.hp * cfg.repair.hpPerMonth * share;
+      ship.hp += max.hp * cfg.repair.hpPerMonth * cfg.pace * share;
       if (ship.hp >= max.hp - EPS) {
         delete ship.hp;
         delete ship.repairing;
